@@ -3,13 +3,11 @@
 ## MediaContent API
 
 ```
-# $ cd $webinos-pzp-path/node_modules
-$ git clone https://github.com/webinos/webinos-api-mediaContent.git
-$ cd webinos-api-mediaContent
-$ npm install
+# $ cd $webinos-pzp-path
+$ npm install git+https://github.com/webinos/webinos-api-mediaContent
 # In addition you need to install mediainfo (CLI)
 # on osx:
-$ brew install mediainfo 
+$ brew install mediainfo imagemagick
 # on debian/ubuntu
 $ sudo apt-get install mediainfo imagemagick
 ```
@@ -17,7 +15,7 @@ $ sudo apt-get install mediainfo imagemagick
 Notice: To avoid your System Media folders to be scanned (which may take long), 
 you may alternatively create an folder on your Desktop called ```Media``` and 
 put a ```Music```, ```Pictures``` and ```Movies``` subfolders in it.
-Then alter ```$webinos-pzp-path/node_modules/webinos-api-mediaContent/lib/mediacontent_mediainfo.js```
+Then alter ```$webinos-pzp-path/node_modules/webinos-api-mediacontent/lib/mediacontent_mediainfo.js```
 to scan from this loaction:
 ```
     var home = os.type().toLowerCase() === "windows_nt" ? "userprofile" : "HOME";
@@ -33,10 +31,8 @@ to scan from this loaction:
 ## Media (Play) API
 
 ```
-# $ cd $webinos-pzp-path/node_modules
-$ git clone https://github.com/webinos/webinos-api-media.git
-$ cd webinos-api-media
-$ npm install
+# $ cd $webinos-pzp-path
+$ npm install git+https://github.com/webinos/webinos-api-media.git
 # In addition you need to install mplayer
 # on osx:
 $ brew install mplayer 
@@ -47,17 +43,13 @@ $ sudo apt-get install mplayer
 ## DeviceStatus API
 
 ```
-# $ cd $webinos-pzp-path/node_modules
-$ git clone https://github.com/webinos/webinos-api-deviceStatus.git
-$ cd webinos-api-deviceStatus
-$ npm install
+# $ cd $webinos-pzp-path
+$ npm install git+https://github.com/webinos/webinos-api-deviceStatus.git
 ```
 
 ## App2App API
 
 ```
-# $ cd $webinos-pzp-path/node_modules
-$ git clone https://github.com/webinos/webinos-api-app2app.git
-$ cd webinos-api-app2app
-$ npm install
+# $ cd $webinos-pzp-path
+$ npm install https://github.com/webinos/webinos-api-app2app.git
 ```
