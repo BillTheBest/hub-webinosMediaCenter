@@ -103,6 +103,8 @@ function BrowserViewModel(manager, input) {
     };
   }).filter(function (operation) {
     return operation.selectedContent.length && operation.selectedTargets.length;
+  }).doAction(function () {
+    selectedContent.set([]);
   }).onValue(function (operation) {
     var items = _.map(operation.selectedContent, function (selectedItem) {
       var source = operation.devices[selectedItem.source];
