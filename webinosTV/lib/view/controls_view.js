@@ -134,7 +134,7 @@ function ControlsView(parent, config, viewModel) {
   viewModel.state().onValue(function (state) {
     if (state === '<no-state>') {
       seek(0); pause();
-    } else if (state.playback.current) {
+    } else if (state.playback.current && !state.playback.stopping) {
       if (state.playback.playing) {
         play();
         length = 0; // TODO: Get length from `state.queue[0].item`.
