@@ -136,9 +136,11 @@ class LocalPeerService extends PeerService
         when 'playback:next'
           next(playback.current)
         when 'queue:prepend'
+          sink? new Bacon.Next(new Prepend(content.items))
           queue = content.items.concat(queue)
           next(no) if content.items.length > 0
         when 'queue:append'
+          sink? new Bacon.Next(new Append(content.items))
           queue = queue.concat(content.items)
           next(no) if content.items.length is queue.length
         when 'queue:remove'
@@ -160,6 +162,8 @@ class Event
   isPause: -> no
   isResume: -> no
   isStop: -> no
+  isPrepend: -> no
+  isAppend: -> no
 
 class Play extends Event
   constructor: (item) ->
@@ -179,6 +183,16 @@ class Resume extends Event
 
 class Stop extends Event
   isStop: -> yes
+
+class WithItems extends Event
+  constructor: (items) ->
+    @items = -> items
+
+class Prepend extends WithItems
+  isPrepend: -> yes
+
+class Append extends WithItems
+  isAppend: -> yes
 
 class RemotePeerService extends PeerService
   constructor: (channel, peer) ->

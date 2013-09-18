@@ -4,6 +4,8 @@ var Bacon = require('baconjs');
 
 var ControlsViewModel = require('./controls_view_model.js');
 
+var gotoPageById = require('./pagetransition.js');
+
 function RendererViewModel(manager, input) {
   input = input.filter(function () {
     return $('.pt-page-current').attr('id') === 'renderer' && !$('.menu').is(":visible");;
@@ -52,7 +54,12 @@ function RendererViewModel(manager, input) {
   this.events = function () {
     return events.filter(function (event) {
       return event.player === 'app';
-    }).map('.event');
+    }).map('.event').doAction(function (event) {
+      if (event.isPrepend() && event.items().length) {
+        gotoPageById('#renderer');
+        window.closeMainmenu();
+      }
+    });
   };
 
   device.sampledBy(events.filter(function (event) {

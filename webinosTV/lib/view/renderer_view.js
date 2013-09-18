@@ -1,8 +1,6 @@
 var $ = require('jquery');
 var Bacon = require('baconjs');
 
-var gotoPageById = require('./pagetransition.js');
-
 var ControlsView = require('./controls_view.js');
 
 $(window).resize(function() {
@@ -92,9 +90,6 @@ function RendererView(viewModel) {
   //command
   viewModel.events().onValue(function(event){
     if(event.isPlay()){
-      gotoPageById('#renderer');
-      window.closeMainmenu();
-
       if (self.videoRenderer.length) self.videoRenderer[0].src = '';
       self.videoRenderer.length?self.videoRenderer[0].pause():void 0;
       self.playItem(event.item().item.type,event.item().link);
