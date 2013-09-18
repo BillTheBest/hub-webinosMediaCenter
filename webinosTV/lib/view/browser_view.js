@@ -3,6 +3,7 @@ var $ = require('jquery');
 var _ = require('../util/objectscore.coffee'); // require('underscore');
 var address = require('../util/address.coffee')
 var Bacon = require('baconjs');
+var bjq = require('bacon.jquery');
 var IScroll = require('iscroll');
 var util = require('util');
 
@@ -277,6 +278,8 @@ function BrowserView(viewModel) {
 
   var listViews = [sourceListView, categoryListView, contentListView, targetListView, null, queueListView];
   var navigationView = new NavigationView(viewModel, listViews);
+
+  viewModel.search().bind(bjq.textFieldValue($('#searchfield')));
 
   viewModel.prepend().plug($('#prepend').asEventStream('click').merge($('#prepend').asEventStream('touchend')));
   viewModel.append().plug($('#append').asEventStream('click').merge($('#append').asEventStream('touchend')));

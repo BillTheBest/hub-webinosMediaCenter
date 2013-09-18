@@ -45,9 +45,15 @@ function BrowserViewModel(manager, input) {
     return selectedCategories;
   };
 
+  var search = bjq.Model('');
+  this.search = function () {
+    return search;
+  };
+
   var content = Bacon.combineTemplate({
     sources: sources, selectedSources: selectedSources,
-    categories: categories, selectedCategories: selectedCategories
+    categories: categories, selectedCategories: selectedCategories,
+    search: search
   }).map(function (state) {
     var types = _.map(state.selectedCategories, function (id) {
       return id ? _.findWhere(state.categories, {id: id}).type : id;
@@ -57,7 +63,11 @@ function BrowserViewModel(manager, input) {
       return !state.selectedSources.length || _.contains(state.selectedSources, source.address());
     }).map(function (source) {
       return _.chain(source.content()).values().flatten().filter(function (item) {
-        return !types.length || _.find(types, function(type) {return item.type.toLowerCase().indexOf(type.toLowerCase()) != -1 });
+        return !types.length || _.find(types, function(type) {
+          return item.type.toLowerCase().indexOf(type.toLowerCase()) != -1;
+        });
+      }).filter(function (item) {
+        return !state.search.length || item.title.toLowerCase().indexOf(state.search.toLowerCase()) != -1;
       }).map(function (item) {
         return {source: source, item: item};
       }).value();
