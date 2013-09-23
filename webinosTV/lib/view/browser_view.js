@@ -194,7 +194,7 @@ function QueueListView(viewModel) {
   ListView.call(this, viewModel.queue(), viewModel.selectedQueue(), '#queuelist', '#queuewrapper', '#queue');
 }
 
-function NavigationView (viewModel, listViews) {
+function NavigationView (viewModel, listViews, horizontalScroll) {
   var columns = [".nav_sl", ".nav_ca", ".nav_co", ".nav_tl", ".nav_pm", ".nav_qu"];
   var curCol = 0;
   var curRow = [0, 0, 0, 0, 0, 0];
@@ -221,16 +221,20 @@ function NavigationView (viewModel, listViews) {
           centerFocusedElement();
           break;
         case 'right':
-          if(curCol < 5)
+          if(curCol < 5){
             curCol++;
+            centerFocusedElement();
+          }
           else if(curCol == 5 && curRow[5] < 5)
             curRow[5]++;
           break;
         case 'left':
           if(curCol == 5 && curRow[5] < 6 && curRow[5] > 0)
             curRow[5]--;
-          else if(curCol > 0)
-            curCol--;
+          else if(curCol > 0){
+              curCol--;
+              centerFocusedElement();
+            }
           else if(curCol === 0)
             window.openMainmenu();
           break;
@@ -250,8 +254,11 @@ function NavigationView (viewModel, listViews) {
   }
 
   function centerFocusedElement(){
-    if(curCol != 4 && listViews[curCol].scroll.hasVerticalScroll){
+    if(curCol != 4 && listViews[curCol].scroll != undefined && listViews[curCol].scroll.hasVerticalScroll){
       listViews[curCol].scroll.scrollToElement($(columns[curCol]).eq(curRow[curCol]).get(0), null, null, true);
+    }
+    if(horizontalScroll.hasHorizontalScroll){
+      horizontalScroll.scrollToElement($(".listhead").eq(curCol).get(0), null, null, true);
     }
   }
 
@@ -277,7 +284,7 @@ function BrowserView(viewModel) {
   var queueListView = new QueueListView(viewModel);
 
   var listViews = [sourceListView, categoryListView, contentListView, targetListView, null, queueListView];
-  var navigationView = new NavigationView(viewModel, listViews);
+  var navigationView = new NavigationView(viewModel, listViews, horizontalScroll);
 
   viewModel.search().bind(bjq.textFieldValue($('#searchfield')));
 

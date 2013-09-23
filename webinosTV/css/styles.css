@@ -73,9 +73,12 @@ p {
     height: 18px;
 }
 
-.mm_browsermodebutton {
+.mm_subbutton {
+    position: relative;
     display: inline-block;
+    float: left;
     width: 50%;
+    height: 100%;
     margin: 0;
 }
 

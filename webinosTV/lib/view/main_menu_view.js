@@ -119,18 +119,28 @@ function NavigationView (viewModel) {
         if (direction !== 'enter') $(".nav_mm.focus").removeClass('focus');
         switch(direction){
           case 'down':
-            if(mmCurPos < 2)
+            if(mmCurPos < 3)
               mmCurPos++;
             break;
           case 'up':
-            if(mmCurPos > 0)
+            if(mmCurPos == 4)
+              mmCurPos -= 2;
+            else if(mmCurPos > 0)
               mmCurPos--;
             break;
           case 'left':
-            window.openMainmenu();
+            if(mmCurPos == 4 && $(".menu").is(":visible")){
+              mmCurPos--;
+            }else{
+              window.openMainmenu();
+            }
             break;
           case 'right':
-            window.closeMainmenu();
+            if(mmCurPos == 3){
+              mmCurPos++;
+            }else{
+              window.closeMainmenu();
+            }
             break;
           case 'enter':
             $(".nav_mm.focus").click();
@@ -163,7 +173,7 @@ function MainMenuView(viewModel){
 
   $('#toadvancedbrowserbutton').on('click', function(){ gotoPageById('#browser'); closeMainmenu(); });
   $('#torendererbutton').on('click', function(){ gotoPageById('#renderer'); closeMainmenu(); });
-  $('#tocontrollerbutton').on('click', function(){ closeMainmenu(); openSelectTarget(); });   // gotoPageById('#controller'); toggleMainmenu();
+  $('#tocontrollerbutton').on('click', function(){ closeMainmenu(); openSelectTarget(); }); // gotoPageById('#controller');
 
   $('#leftfadeout').on('click', function(){ openMainmenu(); });
   $('.overlay').on('click', function(){ closeMenus(); });
@@ -180,7 +190,7 @@ function MainMenuView(viewModel){
     }else{
       margin = width*0.03;
     }
-    $('.mm_button').height((height-4*margin)/3);
+    $('.mm_button').height((height-5*margin)/4);
     $('.mm_button').css("margin", margin);
     $('.mm_button').width($('.menu').width()-2*margin);
 
