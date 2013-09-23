@@ -211,21 +211,22 @@ function NavigationView (viewModel, listViews, horizontalScroll) {
       if (direction !== 'enter') $(columns[curCol]+".focus").removeClass('focus');
       switch(direction){
         case 'down':
-        if(curRow[curCol] < $(columns[curCol]).length-1)
-          curRow[curCol]++;
-          centerFocusedElement();
+          if(curRow[curCol] < $(columns[curCol]).length-1){
+            curRow[curCol]++;
+            centerFocusedElement();
+          }
           break;
         case 'up':
-        if(curRow[curCol] > 0)
-          curRow[curCol]--;
-          centerFocusedElement();
+          if(curRow[curCol] > 0){
+            curRow[curCol]--;
+            centerFocusedElement();
+          }
           break;
         case 'right':
           if(curCol < 5){
             curCol++;
             centerFocusedElement();
-          }
-          else if(curCol == 5 && curRow[5] < 5)
+          }else if(curCol == 5 && curRow[5] < 5)
             curRow[5]++;
           break;
         case 'left':
@@ -235,8 +236,11 @@ function NavigationView (viewModel, listViews, horizontalScroll) {
               curCol--;
               centerFocusedElement();
             }
-          else if(curCol === 0)
+          else if(curCol === 0){
+            navVisible = false;
+            $(columns[curCol]).eq(curRow[curCol]).removeClass('focus');
             window.openMainmenu();
+          }
           break;
         case 'enter':
           if (navVisible) {

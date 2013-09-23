@@ -34,8 +34,11 @@ function NavigationView (viewModel) {
         case 'left':
           if(curPos > 0)
             curPos--;
-          else if(curPos === 0)
+          else if(curPos === 0){
+            navVisible = false;
+            $(".nav_rd").eq(curPos).removeClass('focus');
             window.openMainmenu();
+          }
           break;
         case 'enter':
           if(navVisible) $(".nav_rd.focus").click();
