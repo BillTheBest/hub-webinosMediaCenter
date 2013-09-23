@@ -85,9 +85,9 @@ function BrowserViewModel(manager, input) {
     return _.chain(devices).filter(function (device) {
       return device.isTarget();
     }).map(function (device) {
-      return _.map(device.upnp(), function (service) {
+      return (device.isLocal() ? _.map(device.upnp(), function (service) {
         return {device: device, service: service, type: 'upnp'};
-      }).concat(_.map(device.peers(), function (service) {
+      }) : []).concat(_.map(device.peers(), function (service) {
         return {device: device, service: service, type: 'peer'};
       }));
     }).flatten().value();
