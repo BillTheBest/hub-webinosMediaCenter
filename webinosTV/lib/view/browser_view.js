@@ -49,7 +49,7 @@ function ListView(items, selection, list, wrapper, fadeout) {
       var id = self.identify(item);
       $item.data('id', id);
       if(list === '#targetlist')
-        $item.data('local', item.isLocal());
+        $item.data('local', item.device.isLocal());
       $list.append($item);
     });
     self.refresh();
@@ -163,12 +163,16 @@ function ContentListView(viewModel) {
 
 util.inherits(TargetListView, ListView);
 function TargetListView(viewModel) {
-  this.htmlify = function (device) {
-    return '<li class="nav_tl" style="height:'+buttonHeight+'px"><img src="images/'+(device.type()?device.type():'all_devices')+'.svg"><p>' + address.friendlyName(device.address()) + '</p></li>';
+  this.htmlify = function (value) {
+    return '<li class="nav_tl" style="height:'+buttonHeight+'px"><img src="images/'+(value.device.type()?value.device.type():'all_devices')+'.svg"><p>' + address.friendlyName(value.device.address()) + '</p></li>';
   };
 
-  this.identify = function (device) {
-    return device.address();
+  this.identify = function (value) {
+    return {
+      device: value.device.address(),
+      service: value.service.id(),
+      type: value.type
+    };
   };
 
   ListView.call(this, viewModel.targets(), viewModel.selectedTargets(), '#targetlist', '#targetwrapper', '#target');
@@ -285,7 +289,7 @@ function BrowserView(viewModel) {
   viewModel.append().plug($('#append').asEventStream('click').merge($('#append').asEventStream('touchend')));
 
   viewModel.selectedPeer().onValue(function (selectedPeer) {
-    $('#peer').text(selectedPeer === '<no-peer>' ? "Select a target" : address.friendlyName(selectedPeer.address()));
+    $('#peer').text(selectedPeer === '<no-peer>' ? "Select a target" : address.friendlyName(selectedPeer.device.address()));
   });
 
   var controlsViewModel = viewModel.controls();
