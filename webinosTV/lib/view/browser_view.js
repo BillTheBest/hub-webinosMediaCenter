@@ -11,6 +11,14 @@ var ControlsView = require('./controls_view.js');
 
 var buttonHeight=0, tappedOn = 0, clickStartEvent=null;
 
+function friendlyName(info) {
+  if (info.type === 'upnp') {
+    return info.service.displayName();
+  } else {
+    return address.friendlyName(info.device.address());
+  }
+}
+
 function ListView(items, selection, list, wrapper, fadeout) {
   var self = this;
   this.scroll = undefined;
@@ -165,7 +173,13 @@ function ContentListView(viewModel) {
 util.inherits(TargetListView, ListView);
 function TargetListView(viewModel) {
   this.htmlify = function (value) {
-    return '<li class="nav_tl" style="height:'+buttonHeight+'px"><img src="images/'+(value.device.type()?value.device.type():'all_devices')+'.svg"><p>' + address.friendlyName(value.device.address()) + '</p></li>';
+    var icon = 'all_devices';
+    if (value.type === 'upnp') {
+      icon = 'tv';
+    } else if (value.device.type()) {
+      icon = value.device.type();
+    }
+    return '<li class="nav_tl" style="height:'+buttonHeight+'px"><img src="images/'+icon+'.svg"><p>' + friendlyName(value) + '</p></li>';
   };
 
   this.identify = function (value) {
@@ -290,7 +304,7 @@ function BrowserView(viewModel) {
   viewModel.append().plug($('#append').asEventStream('click').merge($('#append').asEventStream('touchend')));
 
   viewModel.selectedPeer().onValue(function (selectedPeer) {
-    $('#peer').text(selectedPeer === '<no-peer>' ? "Select a target" : address.friendlyName(selectedPeer.device.address()));
+    $('#peer').text(selectedPeer === '<no-peer>' ? "Select a target" : friendlyName(selectedPeer));
   });
 
   var controlsViewModel = viewModel.controls();

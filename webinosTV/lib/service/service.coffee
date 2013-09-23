@@ -44,6 +44,7 @@ class Service extends Bacon.EventStream
     @underlying = -> underlying
     @address = -> underlying.serviceAddress
     @id = -> underlying.id
+    @displayName = -> underlying.displayName
     @description = -> underlying.description
     @bound = -> bound
     @unbound = -> unbound
