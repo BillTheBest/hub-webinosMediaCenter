@@ -137,23 +137,24 @@ function CategoryListView(viewModel) {
 
 util.inherits(ContentListView, ListView);
 function ContentListView(viewModel) {
-  this.htmlify = function (value) {
+  this.htmlify = function (item) {
     var html;
-    if (typeof value.item.type === 'string' && value.item.type.toLowerCase().indexOf('image') === 0) {
-      html = '<li class="imageContent nav_co"><img src="' + value.item.thumbnailURIs[0] + '">';
+    if (typeof item.type === 'string' && item.type.toLowerCase().indexOf('image') === 0) {
+      html = '<li class="imageContent nav_co"><img src="' + item.thumbnailURIs[0] + '">';
     } else {
-      html = '<li class="textContent nav_co"><p>' + value.item.title + '</p>'
+      html = '<li class="textContent nav_co"><p>' + item.title + '</p>'
     }
     html += '<img class="selectIcon" src="images/add.svg"></li>';
     return html;
   };
 
-  this.identify = function (value) {
+  this.identify = function (item) {
     return {
-      source: value.source.address(),
+      device: item.device.address(),
+      service: item.service.id(),
       item: {
-        id: value.item.id,
-        title: value.item.title
+        id: item.id,
+        title: item.title
       }
     };
   };

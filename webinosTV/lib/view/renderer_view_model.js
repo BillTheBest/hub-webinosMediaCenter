@@ -71,17 +71,18 @@ function RendererViewModel(manager, input) {
   }).map('.event'), function (device, event) {
     return {device: device, event: event};
   }).filter(function (operation) {
-    return operation.device !== '<no-device>' && typeof operation.device.media() !== 'undefined';
+    return operation.device !== '<no-device>' && operation.device.noupnp().length
   }).onValue(function (operation) {
     if (operation.event.isPlay()) {
       var link = operation.event.item().link;
       var index = link.indexOf('#');
       if (index !== -1) link = link.substr(0, index);
 
-      operation.device.media().play(link).then(function () {
+      var service = operation.device.noupnp()[0];
+      service.play(link).then(function () {
         started.push();
 
-        operation.device.media().events().onValue(function (event) {
+        service.events().onValue(function (event) {
           if (event.isPlay()) {
             started.push();
           } else if (event.isPause()) {
@@ -96,11 +97,11 @@ function RendererViewModel(manager, input) {
         });
       });
     } else if (operation.event.isPause()) {
-      operation.device.media().playPause();
+      service.playPause();
     } else if (operation.event.isResume()) {
-      operation.device.media().playPause();
+      service.playPause();
     } else if (operation.event.isStop()) {
-      operation.device.media().stop();
+      service.stop();
     }
   });
 

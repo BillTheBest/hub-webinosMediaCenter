@@ -68,8 +68,6 @@ function BrowserViewModel(manager, input) {
         });
       }).filter(function (item) {
         return !state.search.length || item.title.toLowerCase().indexOf(state.search.toLowerCase()) != -1;
-      }).map(function (item) {
-        return {source: source, item: item};
       }).value();
     }).flatten().value();
   });
@@ -123,12 +121,12 @@ function BrowserViewModel(manager, input) {
     selectedContent.set([]);
   }).onValue(function (operation) {
     var items = _.map(operation.selectedContent, function (selectedItem) {
-      var source = operation.devices[selectedItem.source];
-      var item   = _.chain(source.content()).values().flatten().findWhere({
+      var device = operation.devices[selectedItem.device];
+      var item   = _.chain(device.content()).values().flatten().findWhere({
         id: selectedItem.item.id,
         title: selectedItem.item.title
       }).value();
-      return {source: source, item: item};
+      return _.extend(item, {device: device, service: device.services()[selectedItem.service]});
     });
 
     var targets = _.map(operation.selectedTargets, function (selectedTarget) {
@@ -141,15 +139,15 @@ function BrowserViewModel(manager, input) {
     });
 
     var promises = _.map(items, function (item) {
-      if (item.item.type === 'Channel') {
-        return Promise.fulfill({item: item.item, link: item.item.link})
+      if (item.type === 'Channel') {
+        return Promise.fulfill({item: item, link: item.link})
       }
 
-      return item.source.mediacontent().getLink({
-        folderId: item.item.id,
-        fileName: item.item.title
+      return item.service.getLink({
+        folderId: item.id,
+        fileName: item.title
       }).then(function (link) {
-        return {item: item.item, link: link};
+        return {item: item, link: link};
       });
     });
 
