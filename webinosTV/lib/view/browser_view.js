@@ -99,15 +99,15 @@ function ListView(items, selection, list, wrapper, fadeout) {
       if($item.hasClass('textContent') || $item.hasClass('imageContent')){
         if(_.ocontains(selection, id)){
           if($item.parent().is('#contentlist')){
-            $item.children('.selectIcon').attr('src', 'images/add_blue.svg');
+            $item.find('.selectIcon').attr('src', 'images/add_blue.svg');
           }else{
-            $item.children('.selectIcon').attr('src', 'images/remove_blue.svg');
+            $item.find('.selectIcon').attr('src', 'images/remove_blue.svg');
           }
         }else{
           if($item.parent().is('#contentlist')){
-            $item.children('.selectIcon').attr('src', 'images/add.svg');
+            $item.find('.selectIcon').attr('src', 'images/add.svg');
           }else{
-            $item.children('.selectIcon').attr('src', 'images/remove.svg');
+            $item.find('.selectIcon').attr('src', 'images/remove.svg');
           }
         }
       }else{
@@ -146,13 +146,15 @@ function CategoryListView(viewModel) {
 util.inherits(ContentListView, ListView);
 function ContentListView(viewModel) {
   this.htmlify = function (item) {
+    var addSelectIcon = function() {
+      return '<img class="selectIcon" src="images/add.svg">';
+    };
     var html;
     if (typeof item.type === 'string' && item.type.toLowerCase().indexOf('image') === 0) {
-      html = '<li class="imageContent nav_co"><img src="' + item.thumbnailURIs[0] + '">';
+      html = '<li class="imageContent nav_co"><div class="thumbnail" style="background-image:url(' + item.thumbnailURIs[0] + ')">' + addSelectIcon() + '</div></li>';
     } else {
-      html = '<li class="textContent nav_co"><p>' + item.title + '</p>'
+      html = '<li class="textContent nav_co"><div><p>' + item.title + '</p>' + addSelectIcon() + '</div></li>';
     }
-    html += '<img class="selectIcon" src="images/add.svg"></li>';
     return html;
   };
 
