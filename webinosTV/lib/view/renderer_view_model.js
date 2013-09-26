@@ -73,12 +73,13 @@ function RendererViewModel(manager, input) {
   }).filter(function (operation) {
     return operation.device !== '<no-device>' && operation.device.noupnp().length
   }).onValue(function (operation) {
+    var service = operation.device.noupnp()[0];
+
     if (operation.event.isPlay()) {
       var link = operation.event.item().link;
       var index = link.indexOf('#');
       if (index !== -1) link = link.substr(0, index);
 
-      var service = operation.device.noupnp()[0];
       service.play(link).then(function () {
         started.push();
 
