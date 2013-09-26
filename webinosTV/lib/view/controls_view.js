@@ -137,9 +137,9 @@ function ControlsView(parent, config, viewModel) {
     } else if (state.playback.current && !state.playback.stopping) {
       if (state.playback.playing) {
         play();
-        length = 0; // TODO: Get length from `state.queue[0].item`.
+        length = 0;
         //TODO: move this nasty stuff away from view
-        if (state.queue[0].item.type.toLowerCase().indexOf("audio")!=-1 || state.queue[0].item.type.toLowerCase().indexOf("video")!=-1){
+        if (typeof state.queue !== 'undefined' && (state.queue[0].item.type.toLowerCase().indexOf("audio")!=-1 || state.queue[0].item.type.toLowerCase().indexOf("video")!=-1)){
           if (typeof state.queue[0].item.duration === "number") {
             length = state.queue[0].item.duration;
           } else if(state.queue[0].item.duration && state.queue[0].item.duration.length){

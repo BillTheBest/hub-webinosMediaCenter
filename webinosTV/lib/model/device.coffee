@@ -150,26 +150,32 @@ class Device extends Bacon.EventStream
           delete services[service.id()]
         services
     @devicestatus = -> _.find(services, ({ref}) -> ref instanceof DeviceStatusService)?.ref
-    @mediacontent = -> _.find(services, ({ref}) -> ref instanceof MediaContentService)?.ref
+    @mediacontent = -> _.chain(services).filter(({ref}) -> ref instanceof MediaContentService).pluck('ref').value()
     @television = -> _.find(services, ({ref}) -> ref instanceof TelevisionService)?.ref
-    @media = -> _.find(services, ({ref}) -> ref instanceof MediaService)?.ref
+    @media = -> _.chain(services).filter(({ref}) -> ref instanceof MediaService).pluck('ref').value()
+    @upnp = => _.filter(@media(), (ref) -> ref.description().toLowerCase().indexOf('upnp') isnt -1)
+    @noupnp = => _.filter(@media(), (ref) -> ref.description().toLowerCase().indexOf('upnp') is -1)
     @peers = -> _.chain(services).filter(({ref}) -> ref instanceof PeerService).pluck('ref').value()
-    @isSource = => @mediacontent()? or @television()?
-    @isTarget = => @peers().length > 0
+    @isSource = => @mediacontent().length or @television()?
+    @isTarget = => @upnp().length > 0 or @peers().length > 0
     @refresh = (force = no) =>
       now = Date.now()
       return if refresh? and refresh >= (now - interval) and not force
       refresh = now
-      @mediacontent()?.findItem({}).then (items) =>
-        content['media'] = items
-        sink? new Bacon.Next(new Changed(this))
+      content['media'] = []
+      _.each @mediacontent(), (ref) =>
+        ref.findItem({}).then (items) =>
+          return if refresh isnt now
+          _.each items, (item) =>
+            content['media'].push(_.extend(item, {device: this, service: ref}))
+          sink? new Bacon.Next(new Changed(this))
       @television()?.tuner().getTVSources().then (sources) =>
         content['tv'] = _.chain(sources)
           .map (source) ->
             source.channelList
           .flatten()
-          .map ({channelType, name, longName, stream}, index) ->
-            {id: index, type: 'Channel', channelType, title: name, longTitle: longName, link: stream}
+          .map ({channelType, name, longName, stream}, index) =>
+            {id: index, type: 'Channel', channelType, title: name, longTitle: longName, link: stream, device: this, service: @television()}
           .value()
         sink? new Bacon.Next(new Changed(this))
 

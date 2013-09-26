@@ -19,12 +19,16 @@ function SelectTargetListView(items, selection) {
     }
   };
 
-  this.htmlify = function (device) {
-    return '<li class="nav_st"><img src="images/'+(device.type()?device.type():'all_devices')+'.svg"><p>' + address.friendlyName(device.address()) + '</p></li>';
+  this.htmlify = function (value) {
+    return '<li class="nav_st"><img src="images/'+(value.device.type()?value.device.type():'all_devices')+'.svg"><p>' + address.friendlyName(value.device.address()) + '</p></li>';
   };
 
-  this.identify = function (device) {
-    return device.address();
+  this.identify = function (value) {
+    return {
+      device: value.device.address(),
+      service: value.service.id(),
+      type: value.type
+    };
   };
 
   items.onValue(function (items) {

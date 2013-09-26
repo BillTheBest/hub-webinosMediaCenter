@@ -36,11 +36,29 @@ class MediaService extends Service
           sink? new Bacon.End()
         .then => @isPlaying()
         .then ({isPlaying, currentMedia, volume}) =>
-          sink? new Bacon.Next(new Playing(this, currentMedia, volume)) if isPlaying
+          sink? new Bacon.Next(new Play(this, currentMedia, volume)) if isPlaying
       unsub
+    state = events.scan {
+      playback:
+        current: no
+        playing: no
+        # stopping: no
+        relative: 0
+      # queue: []
+    }, ({playback}, event) ->
+      if event.isPlay()
+        playback = {current: yes, playing: yes, relative: 0}
+      else if event.isPause()
+        playback = {current: yes, playing: no, relative: 0}
+      else if event.isStop() or event.isEnd()
+        playback = {current: no, playing: no, relative: 0}
+      {playback}
     super(underlying)
+    @initialize = ->
+      state.onValue (value) -> undefined
     @filter('.isUnbind').onValue -> sink? new Bacon.End()
     @events = -> events
+    @state = -> state
   play: (path) ->
     return Promise.reject("Service not bound") unless @bound()
     promisify('play', @underlying())(path)
@@ -91,7 +109,6 @@ class Event
   constructor: (service) ->
     @service = -> service
   isPlay: -> no
-  isPlaying: -> no
   isPause: -> no
   isStop: -> no
   isEnd: -> no
@@ -103,10 +120,6 @@ class Play extends Event
     @media = -> media
     @volume = -> volume
   isPlay: -> yes
-
-class Playing extends Play
-  isPlay: -> no
-  isPlaying: -> yes
 
 class Pause extends Event
   isPause: -> yes

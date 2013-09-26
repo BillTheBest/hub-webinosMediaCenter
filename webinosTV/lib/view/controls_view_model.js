@@ -7,7 +7,7 @@ function ControlsViewModel(peer) {
 
   var state = peer.flatMapLatest(function (peer) {
     if (peer === '<no-peer>') return Bacon.once('<no-state>');
-    return peer.state();
+    return peer.service.state();
   }).toProperty('<no-state>');
 
   this.state = function () {
@@ -21,28 +21,36 @@ function ControlsViewModel(peer) {
   }).sampledBy(commands, function (current, command) {
     return {peer: current.peer, state: current.state, command: command};
   }).filter(function (operation) {
-    return operation.peer !== '<no-peer>' && operation.state !== '<no-state>';
+    return operation.peer !== '<no-peer>' &&
+          (operation.peer.type === 'peer' ||
+            (operation.peer.type === 'upnp' &&
+             operation.command.type === 'playOrPause')) &&
+           operation.state !== '<no-state>';
   }).onValue(function (operation) {
     switch (operation.command.type) {
       case 'playOrPause':
-        operation.peer.playOrPause();
+        if (operation.peer.type === 'upnp') {
+          operation.peer.service.playPause();
+        } else if (operation.peer.type === 'peer') {
+          operation.peer.service.playOrPause();
+        }
         break;
       case 'previous':
-        operation.peer.seek(0);
+        operation.peer.service.seek(0);
         break;
       case 'next':
-        operation.peer.next();
+        operation.peer.service.next();
         break;
       case 'seek':
-        operation.peer.seek(operation.command.content.relative);
+        operation.peer.service.seek(operation.command.content.relative);
         break;
       case 'rewind':
         var relative = Math.max(0, operation.state.playback.relative - operation.command.content.subtract);
-        operation.peer.seek(relative);
+        operation.peer.service.seek(relative);
         break;
       case 'forward':
         var relative = Math.min(1, operation.state.playback.relative + operation.command.content.add);
-        operation.peer.seek(relative);
+        operation.peer.service.seek(relative);
         break;
     }
   });
