@@ -70,6 +70,8 @@ class PeerService extends Service
     @send('playback:playOrPause')
   seek: (relative) ->
     @send('playback:seek', {relative})
+  previous: ->
+    @send('playback:previous')
   next: ->
     @send('playback:next')
   prepend: (items) ->
@@ -101,14 +103,25 @@ class LocalPeerService extends PeerService
         playing: no
         stopping: no
         relative: 0
+      index: 0
       queue: []
-    }, ({playback, queue}, {type, content}) ->
+    }, ({playback, index, queue}, {type, content}) ->
+      previous = (shift) ->
+        if playback.current
+          playback.stopping = yes
+          sink? new Bacon.Next(new Stop())
+        index = Math.max(0, index - 1) if shift
+        sink? new Bacon.Next(new Play(queue[index])) if queue.length > index
       next = (shift) ->
         if playback.current
           playback.stopping = yes
           sink? new Bacon.Next(new Stop())
-        queue = _.tail(queue) if shift
-        sink? new Bacon.Next(new Play(queue[0])) if queue.length > 0
+        # queue = _.tail(queue) if shift
+        if index is queue.length
+          index = 0
+        else if shift
+          index = Math.min(queue.length, index + 1)
+        sink? new Bacon.Next(new Play(queue[index])) if queue.length > index
       switch type
         when 'playback:started'
           if playback.current and not playback.stopping
@@ -133,22 +146,27 @@ class LocalPeerService extends PeerService
             next(no)
         when 'playback:seek'
           sink? new Bacon.Next(new Seek(content.relative)) if playback.current
+        when 'playback:previous'
+          previous(playback.relative < 0.1)
         when 'playback:next'
           next(playback.current)
         when 'queue:prepend'
           sink? new Bacon.Next(new Prepend(content.items))
           queue = content.items.concat(queue)
-          next(no) if content.items.length > 0
+          if content.items.length > 0
+            index = 0; next(no)
         when 'queue:append'
           sink? new Bacon.Next(new Append(content.items))
           queue = queue.concat(content.items)
-          next(no) if content.items.length is queue.length
+          if content.items.length is queue.length
+            index = 0; next(no)
         when 'queue:remove'
           queue = _.clone(queue)
           for i in _.sortBy(content.items, _.identity).reverse()
             queue.splice(i, 1)
-          next(no) if 0 in content.items
-      {playback, queue}
+          if index in content.items
+            index = 0; next(no)
+      {playback, index, queue}
     @initialize = =>
       state.onValue (state) => @send('synchronize', state)
     @apply = -> apply
