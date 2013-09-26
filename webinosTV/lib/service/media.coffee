@@ -34,7 +34,7 @@ class MediaService extends Service
         .catch (error) ->
           sink? new Bacon.Error(error)
           sink? new Bacon.End()
-        .then => @isPlaying()
+        .then(=> @isPlaying())
         .then ({isPlaying, currentMedia, volume}) =>
           sink? new Bacon.Next(new Play(this, currentMedia, volume)) if isPlaying
       unsub

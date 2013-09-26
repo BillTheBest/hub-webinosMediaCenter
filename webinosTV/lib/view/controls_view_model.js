@@ -36,7 +36,7 @@ function ControlsViewModel(peer) {
         }
         break;
       case 'previous':
-        operation.peer.service.seek(0);
+        operation.peer.service.previous();
         break;
       case 'next':
         operation.peer.service.next();
