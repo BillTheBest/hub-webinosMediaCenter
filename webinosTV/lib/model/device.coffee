@@ -10,6 +10,7 @@ PeerService = require('./peer.coffee')
 MediaContentService = require('../service/mediacontent.coffee')
 TelevisionService = require('../service/television.coffee')
 MediaService = require('../service/media.coffee')
+PaymentService = require('../service/payment.coffee')
 
 class DeviceManager extends Bacon.EventStream
   constructor: (interval = 15000, timeout = 30000) ->
@@ -54,7 +55,8 @@ class DeviceManager extends Bacon.EventStream
         MessagingService.findServices(),
         MediaContentService.findServices(),
         TelevisionService.findServices(),
-        MediaService.findServices())
+        MediaService.findServices(),
+        PaymentService.findServices())
     services
       .flatMap (service) ->
         Bacon.fromPromise(service.bindService())
@@ -155,6 +157,7 @@ class Device extends Bacon.EventStream
     @media = -> _.chain(services).filter(({ref}) -> ref instanceof MediaService).pluck('ref').value()
     @upnp = => _.filter(@media(), (ref) -> ref.description().toLowerCase().indexOf('upnp') isnt -1)
     @noupnp = => _.filter(@media(), (ref) -> ref.description().toLowerCase().indexOf('upnp') is -1)
+    @payment = -> _.find(services, ({ref}) -> ref instanceof PaymentService)?.ref
     @peers = -> _.chain(services).filter(({ref}) -> ref instanceof PeerService).pluck('ref').value()
     @isSource = => @mediacontent().length or @television()?
     @isTarget = => @upnp().length > 0 or @peers().length > 0
