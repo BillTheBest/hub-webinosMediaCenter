@@ -766,15 +766,10 @@
   if (typeof module !== "undefined") {
     logger= require("./logging.js")(__filename);
   }
-	function logObj(obj, name)	{
-		for (var myKey in obj)	{
-			if (typeof obj[myKey] === 'object')
-			{
-				logger.log(name + "["+myKey +"] = "+JSON.stringify(obj[myKey]));
-				logObj(obj[myKey], name + "." + myKey);
-			}
-		}
-	}
+
+    function logMsg(name, message) {
+        logger.log(name + '\n from: ' + message.from + '\n to:' + message.to + '\n resp_to:' + message.resp_to);
+    }
 
 	/** Message fields:
 	 *
@@ -906,9 +901,12 @@
 	 * Returns true if msg is a msg for app on wrt connected to this pzp.
 	 */
 	function isLocalAppMsg(msg) {
+		var ownId = this.ownSessionId.split(this.separator);
+		var toId  = msg.to.split(this.separator);
 		if (/\/[a-f0-9]+:\d+/.exec(msg.to) // must include /$hexstr:$num to be wrt
 				&& /\//.exec(this.ownSessionId) // must include "/" to be pzp
-				&& msg.to.substr(0, this.ownSessionId.length) === this.ownSessionId) {
+				&& ownId.length > 1 && toId.length > 1
+				&& ownId[0] === toId[0] && ownId[1] === toId[1]) {
 			return true;
 		}
 		return false;
@@ -1057,16 +1055,15 @@
 
 				// not registered either way
 				if ((!this.clients[session1]) && (!this.clients[session2])) {
-					logObj(message, "Sender, receiver not registered either way");
 					var forwardto = /*isSameZonePzp.call(this, to) ? to:  */getPzhAddr.call(this, message);
 					if (forwardto === this.ownSessionId) {
-						logger.log('drop message, never forward to itself');
+						logMsg('drop message, never forward to self. msg details:', message);
 						return;
 					}
 
 					if (isLocalAppMsg.call(this, message)) {
 						// msg from other pzp to wrt previously connected to this pzp
-						logger.log('drop message, wrt disconnected');
+						logMsg('drop message, adressed wrt disconnected. msg details:', message);
 						return;
 					}
 
@@ -1169,9 +1166,9 @@ if (typeof _webinos === "undefined") {
     function updateConnected(message){
         if (message.pzhId) pzhId = message.pzhId;
         if (message.connectedDevices) connectedDevices = message.connectedDevices;
-        isConnected = !!(webinos.session.getConnectedPzh().indexOf(pzhId) !== -1);
         if (message.enrolled) enrolled = message.enrolled;
-        if (message.mode) mode = message.mode;
+        if (message.state) mode = message.state;
+        if (mode)  isConnected = (mode["Pzh"] === "connected" || mode["Pzp"] === "connected");
         if (message.hasOwnProperty("pzhWebAddress")) {
             webinos.session.setPzhWebAddress(message.pzhWebAddress);
         } 
@@ -1271,7 +1268,7 @@ if (typeof _webinos === "undefined") {
               list.push(connectedDevices[i]);
             } else {
               for (var j = 0; j < (connectedDevices[i].pzp && connectedDevices[i].pzp.length); j = j + 1){
-               list.push(connectedDevices[i].pzp[j].id);
+               list.push(connectedDevices[i].pzp[j]);
               }
            }
           }
@@ -1449,7 +1446,8 @@ if (typeof _webinos === "undefined") {
         };
         channel.onopen = function() {
           var url = window.location.pathname;
-          webinos.session.message_send({type: 'prop', payload: {status:'registerBrowser', value: url}});
+          var origin = window.location.origin;
+          webinos.session.message_send({type: 'prop', payload: {status:'registerBrowser', value: url, origin: origin}});
         };
         channel.onerror = function(evt) {
           console.log("WebSocket error" + JSON.stringify(evt));
@@ -1548,6 +1546,21 @@ if (typeof _webinos === "undefined") {
         var callerCache = [];
 
         /**
+         * Search for installed APIs.
+         * @param APINameFilter String to filter API names.
+         * @param successCB Callback to call with results.
+         * @param errorCB Callback to call in case of error.
+         */
+        this.findConfigurableAPIs = function(APINameFilter, successCB, errorCB) {
+            //Calls to this method can be constrained using dashboard's feature
+            var rpc = rpcHandler.createRPC('ServiceDiscovery', 'findConfigurableAPIs', [{'api':'http://webinos.org/api/dashboard'}, APINameFilter]);
+            rpcHandler.executeRPC(rpc
+                    , function (params) { successCB(params); }
+                    , function (params) { errorCB(params); }
+            );
+        };
+        
+        /**
          * Search for registered services.
          * @param {ServiceType} serviceType ServiceType object to search for.
          * @param {FindCallBack} callback Callback to call with results.
@@ -1617,8 +1630,8 @@ if (typeof _webinos === "undefined") {
                 var baseServiceObj = params;
 
                 // reduce feature uri to base form, e.g. http://webinos.org/api/sensors
-                // instead of http://webinos.org/api/sensors.light etc.
-                var stype = /(?:.*(?:\/[\w]+)+)/.exec(baseServiceObj.api);
+                // instead of http://webinos.org/api/sensors/light etc.
+                var stype = /.+(?:api|ns|manager|mwc|core)\/(?:w3c\/|api-perms\/|internal\/|discovery\/)?[^\/\.]+/.exec(baseServiceObj.api);
                 stype = stype ? stype[0] : undefined;
 
                 var ServiceConstructor = typeMap[stype] || typeMapCompatible[stype];
@@ -1715,6 +1728,77 @@ if (typeof _webinos === "undefined") {
 
     webinos.discovery = new ServiceDiscovery (webinos.rpcHandler);
     webinos.ServiceDiscovery = webinos.discovery; // for backward compat
+}());
+/*******************************************************************************
+ * Code contributed to the webinos project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ ******************************************************************************/
+
+(function () {
+    function isOnNode() {
+        return typeof module === "object" ? true : false;
+    }
+
+    /**
+     * Interface ConfigurationInterface
+     */
+    var ServiceConfiguration = function (rpcHandler) {
+
+        /**
+         * Get current configuration for a specified API.
+         * @param apiName Name of source API.
+         * @param successCB Callback to call with results.
+         * @param errorCB Callback to call in case of error.
+         */
+        this.getServiceConfiguration = function(apiName, successCB, errorCB) {
+            //Calls to this method can be constrained using dashboard's feature
+            var rpc = rpcHandler.createRPC('ServiceConfiguration', 'getServiceConfiguration', [{'api':'http://webinos.org/api/dashboard'}, apiName]);
+            rpcHandler.executeRPC(rpc
+                    , function (params) { successCB(params); }
+                    , function (params) { errorCB(params); }
+            );
+        };
+        
+        /**
+         * Set configuration to a specified API.
+         * @param apiName Name of target API.
+         * @param config Configuration to apply. It updates the params field in the config.json file
+         * @param successCB Callback to call with results.
+         * @param errorCB Callback to call in case of error.
+         */
+        this.setServiceConfiguration = function(apiName, config, successCB, errorCB) {
+            //Calls to this method can be constrained using dashboard's feature
+            var rpc = rpcHandler.createRPC('ServiceConfiguration', 'setServiceConfiguration', [{'api':'http://webinos.org/api/dashboard'}, apiName, config]);
+            rpcHandler.executeRPC(rpc
+                    , function (params) { successCB(params); }
+                    , function (params) { errorCB(params); }
+            );
+        };
+    };
+
+    /**
+     * Export definitions for node.js
+     */
+    if (isOnNode()) {
+        exports.ServiceConfiguration = ServiceConfiguration;
+    } else {
+        // this adds ServiceDiscovery to the window object in the browser
+        window.ServiceConfiguration = ServiceConfiguration;
+    }
+    
+    webinos.configuration = new ServiceConfiguration (webinos.rpcHandler);
 }());
 /*******************************************************************************
  *  Code contributed to the webinos project
@@ -3793,6 +3877,307 @@ if (typeof webinos.file === "undefined") webinos.file = {};
 
     WebinosService.prototype.bindService.call(this, bindCB);
   };
+}());
+/*******************************************************************************
+*  Code contributed to the webinos project
+* 
+* Licensed under the Apache License, Version 2.0 (the "License");
+* you may not use this file except in compliance with the License.
+* You may obtain a copy of the License at
+*  
+*     http://www.apache.org/licenses/LICENSE-2.0
+*  
+* Unless required by applicable law or agreed to in writing, software
+* distributed under the License is distributed on an "AS IS" BASIS,
+* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+* See the License for the specific language governing permissions and
+* limitations under the License.
+* 
+* Copyright 2012 Christian Fuhrhop, Fraunhofer FOKUS
+******************************************************************************/
+
+(function() {
+ //Payment Module Functionality
+
+        PaymentModule = function (obj){      
+                this.base = WebinosService;
+                this.base(obj);
+        };
+
+    var rpcServiceProviderID, rpcCustomerID, rpcShopID;
+
+        PaymentModule.prototype = new WebinosService;
+        
+        /**
+         * To bind the service.
+         * @param bindCB BindCallback object.
+         */
+        PaymentModule.prototype.bindService = function (bindCB, serviceId) {
+                this.listenAttr = {};
+                
+                if (typeof bindCB.onBind === 'function') {
+                        bindCB.onBind(this);
+                };
+        }
+
+
+    PaymentModule.prototype.createShoppingBasket = function (successCallback, errorCallback, serviceProviderID, customerID, shopID) {
+                rpcServiceProviderID=serviceProviderID;
+                rpcCustomerID=customerID;
+                rpcShopID=shopID;
+                
+                var arguments = new Array();
+                arguments[0]=rpcServiceProviderID;
+                arguments[1]=rpcCustomerID;
+                arguments[2]=rpcShopID;
+                var self = this;
+                var rpc = webinos.rpcHandler.createRPC(this, "createShoppingBasket", arguments);
+                webinos.rpcHandler.executeRPC(rpc,
+                                function (params){
+                                        successCallback(new ShoppingBasket(self));
+                                },
+                                function (error){errorCallback(error);}
+                );
+        }
+    /**
+     * The ShoppingItem captures the attributes of a single shopping product
+     *
+     * 
+     * The shopping basket represents a current payment action and allows to 
+     * add a number of items to the basket before proceeding to checkout.
+     * 
+     */
+    ShoppingItem = function (obj) {
+
+        // initialize attributes
+
+        this.productID = "";
+        this.description = "";
+        this.currency = "EUR";
+        this.itemPrice = 0.0;
+        this.itemCount = 0;
+        this.itemsPrice = 0.0;
+        this.base = WebinosService;
+        this.base(obj);
+    };        
+    /**
+     * An id that allows the shop to identify the purchased item
+     *
+     * 
+     * No exceptions
+     * 
+     */
+    ShoppingItem.prototype.productID = ""
+
+    /**
+     * A human-readable text to appear on the bill, so the user can easily see what they bought.
+     *
+     * 
+     * No exceptions
+     * 
+     */
+    ShoppingItem.prototype.description = "";
+
+    /**
+     * The 3-figure code as per ISO 4217.
+     *
+     * 
+     * No exceptions
+     * 
+     */
+    ShoppingItem.prototype.currency = "EUR";
+
+    /**
+     * The price per individual item in the currency given above, a negative number represents a refund.
+     *
+     * 
+     * No exceptions
+     * 
+     */
+    ShoppingItem.prototype.itemPrice = 0.0;
+
+    /**
+     * The number of identical items purchased
+     *
+     * 
+     * No exceptions
+     * 
+     */
+    ShoppingItem.prototype.itemCount = 0;
+
+    /**
+     * Price for all products in this shopping item.
+     *
+     * 
+     * Typically this is itemPrice*itemCount, but special '3 for 2' rebates might apply.
+     * 
+     * Updated by the shopping basket update function.
+     * 
+     * No exceptions
+     * 
+     */
+    ShoppingItem.prototype.itemsPrice = 0.0;
+
+        /**
+     * The ShoppingBasket interface provides access to a shopping basket
+     *
+     * 
+     * The shopping basket represents a current payment action and allows to 
+     * add a number of items to the basket before proceeding to checkout.
+     * 
+     */
+    ShoppingBasket = function (obj) {
+
+        // initialize attributes
+        this.items =new Array(); 
+        this.extras =new Array(); 
+        this.totalBill = 0.0;        
+        this.base = WebinosService;
+        this.base(obj);
+    };
+  
+    
+    /**
+     * List of items currently in the shopping basket.
+     *
+     * 
+     * These are the items that have been added with addItem.
+     * 
+     * No exceptions
+     * 
+     */
+    ShoppingBasket.prototype.items =  null;
+
+    /**
+     * Automatically generated extra items, typically rebates, taxes and shipping costs.
+     *
+     * 
+     * These items are automatically added to the shopping basket by update()
+     * (or after the addition of an item to the basket).
+     * 
+     * These items can contain such 'virtual' items as payback schemes, rebates, taxes,
+     * shipping costs and other items that are calculated on the basis of the regular
+     * items added.
+     * 
+     * No exceptions
+     * 
+     */
+    ShoppingBasket.prototype.extras = null;
+
+    /**
+     * The total amount that will be charged to the user on checkout.
+     *
+     * 
+     * Will be updated by update(), may be updated by addItem().
+     * 
+     * No exceptions
+     * 
+     */
+    ShoppingBasket.prototype.totalBill = 0.0;
+
+    /**
+     * Adds an item to a shopping basket.
+     *
+     */
+    ShoppingBasket.prototype.addItem = function (successCallback, errorCallback, item) {
+                var arguments = new Array();
+                arguments[0]=rpcServiceProviderID;
+                arguments[1]=rpcCustomerID;
+                arguments[2]=rpcShopID;
+                arguments[3]=this;
+                arguments[4]=item;
+                var self = this;
+                var rpc = webinos.rpcHandler.createRPC(this, "addItem", arguments);
+                webinos.rpcHandler.executeRPC(rpc,
+                                function (params){
+                                        
+                                              self.items=params.items;
+                                              self.extras=params.extras;
+                                              self.totalBill=params.totalBill;
+                                        successCallback();
+                                },
+                                function (error){errorCallback(error);}
+                );
+    };
+
+  /**
+     * Updates the shopping basket
+     *
+     * 
+     */
+    ShoppingBasket.prototype.update = function (successCallback, errorCallback) {
+                var arguments = new Array();
+                arguments[0]=rpcServiceProviderID;
+                arguments[1]=rpcCustomerID;
+                arguments[2]=rpcShopID;
+                arguments[3]=this;
+                var self = this;
+                var rpc = webinos.rpcHandler.createRPC(this, "update", arguments);
+                webinos.rpcHandler.executeRPC(rpc,
+                                function (params){                                       
+                                              self.items=params.items;
+                                              self.extras=params.extras;
+                                              self.totalBill=params.totalBill;
+                                        successCallback();
+                                },
+                                function (error){errorCallback(error);}
+                );  
+    };
+
+   /**
+     * Performs the checkout of the shopping basket.
+     *
+     * 
+     * The items in the shopping basket will be charged to the shopper.
+     * 
+     * Depending on the implementation of the actual payment service, this function
+     * might cause the checkout screen of the payment service provider to be displayed.
+     * 
+     */
+    ShoppingBasket.prototype.checkout = function (successCallback, errorCallback) {
+                var arguments = new Array();
+                arguments[0]=rpcServiceProviderID;
+                arguments[1]=rpcCustomerID;
+                arguments[2]=rpcShopID;
+                arguments[3]=this;
+                var self = this;
+                var rpc = webinos.rpcHandler.createRPC(this, "checkout", arguments);
+                webinos.rpcHandler.executeRPC(rpc,
+                                function (params){      
+                                        // remove shopping basket after checkout                                 
+                                              self=null;
+                                        successCallback();
+                                },
+                                function (error){errorCallback(error);}
+                );  
+    };
+
+ 
+
+    ShoppingBasket.prototype.release = function () {
+                var arguments = new Array();
+                arguments[0]=rpcServiceProviderID;
+                arguments[1]=rpcCustomerID;
+                arguments[2]=rpcShopID;
+                arguments[3]=this;
+                var self = this;
+    
+                 // now call thr release on the server, in case it needs to do some clean-up there                       
+                var rpc = webinos.rpcHandler.createRPC(this, "release", arguments);
+                webinos.rpcHandler.executeRPC(rpc,
+                                function (params){ },
+                                function (error){errorCallback(error);}
+                );  
+                 // remove shopping basket after release   
+                 // actually, we could do that without the RPC call,
+                 // but there might be data on the server side that
+                  // needs to be released as well.
+                     // would be best if we could null the object itself,
+                     // but JavaScript doesn't allow this               
+                                        self.items=null;
+                                        self.extras=null;        
+    };
+            
 }());
 //implementation at client side, includes RPC massage invokation
 /**
