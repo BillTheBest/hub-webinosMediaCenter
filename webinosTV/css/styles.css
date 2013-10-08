@@ -352,28 +352,20 @@ p {
 }
 
 /* --- REMOTE --- */
-.pageRemote{
-    background-color: #333;
-    position: absolute;
+
+.backButton{
+    background-size: contain;
+    background-repeat: no-repeat;
     top: 0px; bottom: 0px; left: 0px; right: 0px;
-    overflow: hidden;
+    position: absolute;
+    margin: 1em;
 }
 .landscape .backButton{
     background-image: url(../images/Remote/back_area_landscape.svg);
-    background-size: contain;
-    background-repeat: no-repeat;
-    top: 0px; bottom: 0px; left: 0px; right: 0px;
-    position: absolute;
-    margin: 1em;
 }
-
-.protrait .backButton{
+.portrait .backButton{
     background-image: url(../images/Remote/back_area_portrait.svg);
-    background-size: contain;
-    background-repeat: no-repeat;
-    top: 0px; bottom: 0px; left: 0px; right: 0px;
-    position: absolute;
-    margin: 1em;
+    background-position: bottom;
 }
 
 .backButton .backButtonCaption {
@@ -387,7 +379,6 @@ p {
     position: absolute;
     margin: 1em;
     cursor: pointer;
-
 }
 
 .clickAreaBack, .clickAreaUp, .clickAreaDown, .clickAreaLeft, .clickAreaRight, .clickAreaOk{
@@ -398,20 +389,104 @@ p {
 
 }
 
-.clickAreaRight:active, .clickAreaBack:active{
+
+
+.tapButton{
+    background-size: contain;
+    background-repeat: no-repeat;
+    position: absolute;
+    margin: 1em;
+}
+.landscape .tapButton{
+    background-image: url(../images/Remote/circle_tap_full.svg);
+    background-position: left center;
+}
+.portrait .tapButton{
+    background-image: url(../images/Remote/circle_tap_full.svg);
+    background-position: bottom center;
+}
+
+.switchButtons{
+    float: right;
+    margin-top: 1em;
+    margin-right: 1em;
+}
+.switchButtons .switchButton{
+    top: 0px;
+    position: relative;
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+    cursor: pointer;
+    background-color: #3F3F3F;
+}
+
+.landscape .switchButton{
+    margin-bottom: 0.2em;
+}
+
+.portrait .switchButton{
+    margin-left: 0.2em;
+    float: right;
+}
+
+.toggleTapButton{
+    background-image: url(../images/Remote/mode_tap.svg);
+}
+.toggleSwipeButton{
+    background-image: url(../images/Remote/mode_swipe.svg);
+}
+.toggleGyroButton{
+    background-image: url(../images/Remote/mode_gyro.svg);
+}
+.searchButton{
+    background-image: url(../images/search.svg);
+}
+.changeModeButton{
+    background-image: url(../images/mode_selector.svg);
+}
+
+.logoArea{
+    background-image: url(../images/webinos_logo.svg);
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: right bottom;
+    bottom: 0px; right: 0px;
+    width: 15%;
+    height: 10%;
+    position: absolute;
+    margin: 1em;
+}
+
+.landscape .clickAreaBack:active{
 background: -moz-linear-gradient(left,  rgba(51,51,51,1) 0%, rgba(63,63,63,0) 100%); /* FF3.6+ */
 background: -webkit-gradient(linear, left top, right top, color-stop(0%,rgba(51,51,51,1)), color-stop(100%,rgba(63,63,63,0))); /* Chrome,Safari4+ */
 background: -webkit-linear-gradient(left,  rgba(51,51,51,1) 0%,rgba(63,63,63,0) 100%); /* Chrome10+,Safari5.1+ */
 background: -o-linear-gradient(left,  rgba(51,51,51,1) 0%,rgba(63,63,63,0) 100%); /* Opera 11.10+ */
 background: -ms-linear-gradient(left,  rgba(51,51,51,1) 0%,rgba(63,63,63,0) 100%); /* IE10+ */
 background: linear-gradient(to right,  rgba(51,51,51,1) 0%,rgba(63,63,63,0) 100%); /* W3C */
-
-}
-.clickAreaRight:active{
-border-radius: 100px 0 0 100px;
-}
-.clickAreaBack:active{
 border-radius: 0;
+}
+
+.portrait .clickAreaBack:active{
+background: -moz-linear-gradient(bottom,  rgba(51,51,51,1) 0%, rgba(63,63,63,0) 100%); /* FF3.6+ */
+background: -webkit-gradient(linear, bottom top, right top, color-stop(0%,rgba(51,51,51,1)), color-stop(100%,rgba(63,63,63,0))); /* Chrome,Safari4+ */
+background: -webkit-linear-gradient(bottom,  rgba(51,51,51,1) 0%,rgba(63,63,63,0) 100%); /* Chrome10+,Safari5.1+ */
+background: -o-linear-gradient(bottom,  rgba(51,51,51,1) 0%,rgba(63,63,63,0) 100%); /* Opera 11.10+ */
+background: -ms-linear-gradient(bottom,  rgba(51,51,51,1) 0%,rgba(63,63,63,0) 100%); /* IE10+ */
+background: linear-gradient(to top,  rgba(51,51,51,1) 0%,rgba(63,63,63,0) 100%); /* W3C */
+border-radius: 0;
+}
+
+
+.clickAreaRight:active{
+background: -moz-linear-gradient(left,  rgba(51,51,51,1) 0%, rgba(63,63,63,0) 100%); /* FF3.6+ */
+background: -webkit-gradient(linear, left top, right top, color-stop(0%,rgba(51,51,51,1)), color-stop(100%,rgba(63,63,63,0))); /* Chrome,Safari4+ */
+background: -webkit-linear-gradient(left,  rgba(51,51,51,1) 0%,rgba(63,63,63,0) 100%); /* Chrome10+,Safari5.1+ */
+background: -o-linear-gradient(left,  rgba(51,51,51,1) 0%,rgba(63,63,63,0) 100%); /* Opera 11.10+ */
+background: -ms-linear-gradient(left,  rgba(51,51,51,1) 0%,rgba(63,63,63,0) 100%); /* IE10+ */
+background: linear-gradient(to right,  rgba(51,51,51,1) 0%,rgba(63,63,63,0) 100%); /* W3C */
+border-radius: 100px 0 0 100px;
 }
 
 .clickAreaLeft:active{
@@ -455,72 +530,6 @@ filter: progid:DXImageTransform.Microsoft.gradient( startColorstr='#00333333', e
 border-radius: 100px;
 }
 
-.landscape .tapButton{
-    background-image: url(../images/Remote/circle_tap_full.svg);
-    background-size: contain;
-    background-repeat: no-repeat;
-    top: 0px; bottom: 0px; left: 100px; right: 0px;
-    position: absolute;
-    margin: 1em;
-}
-.switchButtons{
-    top: 0px; right: 0px;
-    width: 5%;
-    height: 10%;
-    position: absolute;
-    margin: 1em;
-}
-.toggleTapButton{
-    background-image: url(../images/Remote/mode_tap.svg);
-    background-size: contain;
-    background-repeat: no-repeat;
-    background-position: right middle;
-    right: 18%;
-    cursor: pointer;
-}
-.toggleSwipeButton{
-    background-image: url(../images/Remote/mode_swipe.svg);
-    background-size: contain;
-    background-repeat: no-repeat;
-    background-position: right middle;
-    right: 12%;
-    cursor: pointer;
-}
-.toggleGyroButton{
-    background-image: url(../images/Remote/mode_gyro.svg);
-    background-size: contain;
-    background-repeat: no-repeat;
-    background-position: right middle;
-    right: 6%;
-    cursor: pointer;
-}
-.searchButton{
-    background-image: url(../images/search.svg);
-    background-size: contain;
-    background-repeat: no-repeat;
-    background-position: right middle;
-    right: 24%;
-    cursor: pointer;
-}
-.changeModeButton{
-    background-image: url(../images/mode_selector.svg);
-    background-size: contain;
-    background-repeat: no-repeat;
-    background-position: right middle;
-    cursor: pointer;
-}
-.logoArea{
-    background-image: url(../images/webinos_logo.svg);
-    background-size: contain;
-    background-repeat: no-repeat;
-    background-position: right bottom;
-    bottom: 0px; right: 0px;
-    width: 15%;
-    height: 10%;
-    position: absolute;
-    margin: 1em;
-}
-
 /* --- Controls --- */
 .controlButton{
     background-size: contain;
@@ -530,6 +539,10 @@ border-radius: 100px;
     height: 100%;
     float:left;
     cursor: pointer;
+}
+
+.controlMode{
+    background-image: url(../images/mode_selector.svg);
 }
 
 .controlPrev{

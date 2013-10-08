@@ -19,18 +19,6 @@ function ListView(items, selection, list, wrapper, fadeout) {
     if ($(list).children().length > 0) {
       if (typeof self.scroll === 'undefined') {
         self.scroll = new IScroll(wrapper, {snap: list +' li', momentum: false});
-        // scroll.on('scrollEnd', function(){
-        //   if(scroll.y >= 0){
-        //     $(fadeout + 'topfadeout').hide();
-        //   }else{
-        //     $(fadeout + 'topfadeout').show();
-        //   }
-        //   if(scroll.y <= ($(wrapper).height() - $(list).height())){
-        //     $(fadeout + 'bottomfadeout').hide();
-        //   }else{
-        //     $(fadeout + 'bottomfadeout').show();
-        //   }
-        // });
       }
       self.scroll.options.snap = document.querySelectorAll(list +' li');
       self.scroll.refresh();
@@ -280,6 +268,7 @@ function NavigationView (viewModel, listViews, horizontalScroll) {
 
 function BrowserView(viewModel) {
   var horizontalScroll = new IScroll('#horizontalwrapper', {snap: '.listhead', scrollX: true, scrollY: false, momentum: false});
+      horizontalScroll.on('scrollEnd', function(){ checkFadeout(); });
 
   var sourceListView = new SourceListView(viewModel);
   var categoryListView = new CategoryListView(viewModel);
@@ -301,6 +290,19 @@ function BrowserView(viewModel) {
 
   var controlsViewModel = viewModel.controls();
   var controlsView = new ControlsView('.queuecontrols', null, controlsViewModel);
+
+  function checkFadeout(){
+    if(horizontalScroll.x >= 0){
+      $('#leftfadeout').hide();
+    }else{
+      $('#leftfadeout').show();
+    }
+    if(horizontalScroll.x <= ($('#horizontalwrapper').width() - $('#horizontalscroller').width())){
+      $('#rightfadeout').hide();
+    }else{
+      $('#rightfadeout').show();
+    }
+  }
 
   function calcSize() {
     var width = $(window).innerWidth();
@@ -348,6 +350,8 @@ function BrowserView(viewModel) {
     targetListView.refresh();
     queueListView.refresh();
     horizontalScroll.refresh();
+
+    checkFadeout();
   }
 
   calcSize();

@@ -15,9 +15,11 @@ function ControlsView(parent, config, viewModel) {
 
   var buttonCount = 5;
   if (config.remove) buttonCount++;
-  if (config.fullscreen) buttonCount++;
+  if (config.fullscreen) buttonCount+=2;
   if (config.highdef) buttonCount++;
 
+  var cmode = $('<div class="controlButton controlMode '+config.navclass+'">');
+  cmode.on('click', function(){ window.openMainmenu(); })
   var cprev = $('<div class="controlButton controlPrev '+config.navclass+'">');
   var crewd = $('<div class="controlButton controlRewd '+config.navclass+'">');
   var cplay = $('<div class="controlButton controlPlay '+config.navclass+'">');
@@ -25,6 +27,7 @@ function ControlsView(parent, config, viewModel) {
   var cnext = $('<div class="controlButton controlNext '+config.navclass+'">');
   var cdele = $('<div class="controlButton controlDele '+config.navclass+'">');
   var cfull = $('<div class="controlButton controlFull '+config.navclass+'">');
+  cfull.on('click', function(){ toggleFullscreen(); });
   var chres = $('<div class="controlButton controlHres '+config.navclass+'">');
   var csbar = $('<div class="controlSbar"><div></div></div>');
   var ctime = $('<div class="controlTime"><div class="controlTimeSchnippel"></div><span>1:00</span></div>');
@@ -34,7 +37,10 @@ function ControlsView(parent, config, viewModel) {
 
   container.append([cprev, crewd, cplay, cfwrd, cnext]);
   if (config.remove) container.append(cdele)
-  if (config.fullscreen) container.append(cfull);
+  if (config.fullscreen){
+    container.prepend(cmode);
+    container.append(cfull);
+  }
   if (config.highdef) container.append(chres);
   controls.append([container, csbar, ctime]);
 
@@ -82,6 +88,20 @@ function ControlsView(parent, config, viewModel) {
     $('.controlTime span', controls).text((length)?getFormatedTime(Math.round(relative * length)):"-");
 
     last = relative;
+  }
+
+  function toggleFullscreen(){
+    var element = document.body;
+
+    if(element.webkitRequestFullScreen){
+      if(!document.webkitIsFullScreen){
+        element.webkitRequestFullScreen();
+        $('.controlFull').css("background-image", "url(images/player_exit_fullscreen.svg)");
+      } else {
+        document.webkitCancelFullScreen();
+        $('.controlFull').css("background-image", "url(images/player_enter_fullscreen.svg)");
+      }
+    }
   }
 
   var seeking = false;
