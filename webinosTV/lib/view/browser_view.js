@@ -11,6 +11,14 @@ var ControlsView = require('./controls_view.js');
 
 var buttonHeight=0, tappedOn = 0, clickStartEvent=null;
 
+function friendlyName(info) {
+  if (info.type === 'upnp') {
+    return info.service.displayName();
+  } else {
+    return address.friendlyName(info.device.address());
+  }
+}
+
 function ListView(items, selection, list, wrapper, fadeout) {
   var self = this;
   this.scroll = undefined;
@@ -37,7 +45,7 @@ function ListView(items, selection, list, wrapper, fadeout) {
       var id = self.identify(item);
       $item.data('id', id);
       if(list === '#targetlist')
-        $item.data('local', item.isLocal());
+        $item.data('local', item.device.isLocal());
       $list.append($item);
     });
     self.refresh();
@@ -79,15 +87,15 @@ function ListView(items, selection, list, wrapper, fadeout) {
       if($item.hasClass('textContent') || $item.hasClass('imageContent')){
         if(_.ocontains(selection, id)){
           if($item.parent().is('#contentlist')){
-            $item.children('.selectIcon').attr('src', 'images/add_blue.svg');
+            $item.find('.selectIcon').attr('src', 'images/add_blue.svg');
           }else{
-            $item.children('.selectIcon').attr('src', 'images/remove_blue.svg');
+            $item.find('.selectIcon').attr('src', 'images/remove_blue.svg');
           }
         }else{
           if($item.parent().is('#contentlist')){
-            $item.children('.selectIcon').attr('src', 'images/add.svg');
+            $item.find('.selectIcon').attr('src', 'images/add.svg');
           }else{
-            $item.children('.selectIcon').attr('src', 'images/remove.svg');
+            $item.find('.selectIcon').attr('src', 'images/remove.svg');
           }
         }
       }else{
@@ -125,23 +133,26 @@ function CategoryListView(viewModel) {
 
 util.inherits(ContentListView, ListView);
 function ContentListView(viewModel) {
-  this.htmlify = function (value) {
+  this.htmlify = function (item) {
+    var addSelectIcon = function() {
+      return '<img class="selectIcon" src="images/add.svg">';
+    };
     var html;
-    if (typeof value.item.type === 'string' && value.item.type.toLowerCase().indexOf('image') === 0) {
-      html = '<li class="imageContent nav_co"><img src="' + value.item.thumbnailURIs[0] + '">';
+    if (typeof item.type === 'string' && item.type.toLowerCase().indexOf('image') === 0) {
+      html = '<li class="imageContent nav_co"><div class="thumbnail" style="background-image:url(' + item.thumbnailURIs[0] + ')">' + addSelectIcon() + '</div></li>';
     } else {
-      html = '<li class="textContent nav_co"><p>' + value.item.title + '</p>'
+      html = '<li class="textContent nav_co"><div><p>' + item.title + '</p>' + addSelectIcon() + '</div></li>';
     }
-    html += '<img class="selectIcon" src="images/add.svg"></li>';
     return html;
   };
 
-  this.identify = function (value) {
+  this.identify = function (item) {
     return {
-      source: value.source.address(),
+      device: item.device.address(),
+      service: item.service.id(),
       item: {
-        id: value.item.id,
-        title: value.item.title
+        id: item.id,
+        title: item.title
       }
     };
   };
@@ -151,12 +162,22 @@ function ContentListView(viewModel) {
 
 util.inherits(TargetListView, ListView);
 function TargetListView(viewModel) {
-  this.htmlify = function (device) {
-    return '<li class="nav_tl" style="height:'+buttonHeight+'px"><img src="images/'+(device.type()?device.type():'all_devices')+'.svg"><p>' + address.friendlyName(device.address()) + '</p></li>';
+  this.htmlify = function (value) {
+    var icon = 'all_devices';
+    if (value.type === 'upnp') {
+      icon = 'tv';
+    } else if (value.device.type()) {
+      icon = value.device.type();
+    }
+    return '<li class="nav_tl" style="height:'+buttonHeight+'px"><img src="images/'+icon+'.svg"><p>' + friendlyName(value) + '</p></li>';
   };
 
-  this.identify = function (device) {
-    return device.address();
+  this.identify = function (value) {
+    return {
+      device: value.device.address(),
+      service: value.service.id(),
+      type: value.type
+    };
   };
 
   ListView.call(this, viewModel.targets(), viewModel.selectedTargets(), '#targetlist', '#targetwrapper', '#target');
@@ -285,7 +306,7 @@ function BrowserView(viewModel) {
   viewModel.append().plug($('#append').asEventStream('click').merge($('#append').asEventStream('touchend')));
 
   viewModel.selectedPeer().onValue(function (selectedPeer) {
-    $('#peer').text(selectedPeer === '<no-peer>' ? "Select a target" : address.friendlyName(selectedPeer.address()));
+    $('#peer').text(selectedPeer === '<no-peer>' ? "Select a target" : friendlyName(selectedPeer));
   });
 
   var controlsViewModel = viewModel.controls();

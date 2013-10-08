@@ -68,8 +68,6 @@ function BrowserViewModel(manager, input) {
         });
       }).filter(function (item) {
         return !state.search.length || item.title.toLowerCase().indexOf(state.search.toLowerCase()) != -1;
-      }).map(function (item) {
-        return {source: source, item: item};
       }).value();
     }).flatten().value();
   });
@@ -84,9 +82,15 @@ function BrowserViewModel(manager, input) {
   };
 
   var targets = manager.toProperty().map(function (devices) {
-    return _.filter(devices, function (device) {
+    return _.chain(devices).filter(function (device) {
       return device.isTarget();
-    });
+    }).map(function (device) {
+      return (device.isLocal() ? _.map(device.upnp(), function (service) {
+        return {device: device, service: service, type: 'upnp'};
+      }) : []).concat(_.map(device.peers(), function (service) {
+        return {device: device, service: service, type: 'peer'};
+      }));
+    }).flatten().value();
   });
 
   this.targets = function () {
@@ -117,42 +121,49 @@ function BrowserViewModel(manager, input) {
     selectedContent.set([]);
   }).onValue(function (operation) {
     var items = _.map(operation.selectedContent, function (selectedItem) {
-      var source = operation.devices[selectedItem.source];
-      var item   = _.chain(source.content()).values().flatten().findWhere({
+      var device = operation.devices[selectedItem.device];
+      var item   = _.chain(device.content()).values().flatten().findWhere({
         id: selectedItem.item.id,
         title: selectedItem.item.title
       }).value();
-      return {source: source, item: item};
+      return _.extend(item, {device: device, service: device.services()[selectedItem.service]});
     });
 
     var targets = _.map(operation.selectedTargets, function (selectedTarget) {
-      return operation.devices[selectedTarget];
+      var device = operation.devices[selectedTarget.device];
+      return {
+        device: device,
+        service: device.services()[selectedTarget.service],
+        type: selectedTarget.type
+      };
     });
 
     var promises = _.map(items, function (item) {
-      if (item.item.type === 'Channel') {
-        return Promise.fulfill({item: item.item, link: item.item.link})
+      if (item.type === 'Channel') {
+        return Promise.fulfill({item: item, link: item.link})
       }
 
-      return item.source.mediacontent().getLink({
-        folderId: item.item.id,
-        fileName: item.item.title
+      return item.service.getLink({
+        folderId: item.id,
+        fileName: item.title
       }).then(function (link) {
-        return {item: item.item, link: link};
+        return {item: item, link: link};
       });
     });
 
     Promise.every.apply(Promise, promises).then(function (values) {
       _.each(targets, function (target) {
-        // Assumption: Only devices with a peer service are recognized as targets.
-        var peer = target.peers()[0];
-        switch (operation.command.type) {
-          case 'prepend':
-            peer.prepend(values);
-            break;
-          case 'append':
-            peer.append(values);
-            break;
+        if (target.type === 'upnp') {
+          target.service.play(values[0].link);
+        } else if (target.type === 'peer') {
+          switch (operation.command.type) {
+            case 'prepend':
+              target.service.prepend(values);
+              break;
+            case 'append':
+              target.service.append(values);
+              break;
+          }
         }
       });
     });
@@ -174,8 +185,12 @@ function BrowserViewModel(manager, input) {
 
   var selectedPeer = manager.toProperty().sampledBy(selectedTargets, function (devices, selectedTargets) {
     if (!selectedTargets.length || selectedTargets.length > 1) return '<no-peer>';
-    // Assumption: Only devices with a peer service are recognized as targets.
-    return devices[selectedTargets[0]].peers()[0];
+    var device = devices[selectedTargets[0].device];
+    return {
+      device: device,
+      service: device.services()[selectedTargets[0].service],
+      type: selectedTargets[0].type
+    };
   });
 
   this.selectedPeer = function () {
@@ -188,8 +203,8 @@ function BrowserViewModel(manager, input) {
   };
 
   var queue = selectedPeer.flatMapLatest(function (selectedPeer) {
-    if (selectedPeer === '<no-peer>') return Bacon.once([]);
-    return selectedPeer.state().map('.queue').skipDuplicates(_.isEqual);
+    if (selectedPeer === '<no-peer>' || selectedPeer.type !== 'peer') return Bacon.once([]);
+    return selectedPeer.service.state().map('.queue').skipDuplicates(_.isEqual);
   }).toProperty([]);
 
   this.queue = function () {
@@ -205,7 +220,7 @@ function BrowserViewModel(manager, input) {
     selectedPeer: selectedPeer,
     queue: queue, selectedQueue: selectedQueue
   }).sampledBy(controls.remove()).filter(function (state) {
-    return state.selectedPeer !== '<no-peer>' && state.selectedQueue.length
+    return state.selectedPeer !== '<no-peer>' && state.selectedPeer.type === 'peer' && state.selectedQueue.length;
   }).onValue(function (state) {
     var indexes = [];
 
@@ -215,7 +230,7 @@ function BrowserViewModel(manager, input) {
       });
     });
 
-    state.selectedPeer.remove(indexes);
+    state.selectedPeer.service.remove(indexes);
   });
 }
 

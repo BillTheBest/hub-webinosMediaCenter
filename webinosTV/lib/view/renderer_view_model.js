@@ -26,7 +26,11 @@ function RendererViewModel(manager, input) {
 
   var peer = device.map(function (local) {
     if (local === '<no-device>' || !local.peers().length) return '<no-peer>';
-    return local.peers()[0];
+    return {
+      device: local,
+      service: local.peers()[0],
+      type: 'peer'
+    };
   });
 
   var controls = new ControlsViewModel(peer);
@@ -38,7 +42,7 @@ function RendererViewModel(manager, input) {
 
   var events = peer.flatMapLatest(function (peer) {
     if (peer === '<no-peer>') return Bacon.never();
-    return peer.events();
+    return peer.service.events();
   }).map(function (event) {
     if (event.isPlay()) {
       if (event.item().link.indexOf('#live') !== -1) {
@@ -67,18 +71,20 @@ function RendererViewModel(manager, input) {
   }).map('.event'), function (device, event) {
     return {device: device, event: event};
   }).filter(function (operation) {
-    return operation.device !== '<no-device>' && typeof operation.device.media() !== 'undefined';
+    return operation.device !== '<no-device>' && operation.device.noupnp().length
   }).onValue(function (operation) {
+    var service = operation.device.noupnp()[0];
+
     if (operation.event.isPlay()) {
       var link = operation.event.item().link;
       var index = link.indexOf('#');
       if (index !== -1) link = link.substr(0, index);
 
-      operation.device.media().play(link).then(function () {
+      service.play(link).then(function () {
         started.push();
 
-        operation.device.media().events().onValue(function (event) {
-          if (event.isPlay() || event.isPlaying()) {
+        service.events().onValue(function (event) {
+          if (event.isPlay()) {
             started.push();
           } else if (event.isPause()) {
             paused.push();
@@ -92,11 +98,11 @@ function RendererViewModel(manager, input) {
         });
       });
     } else if (operation.event.isPause()) {
-      operation.device.media().playPause();
+      service.playPause();
     } else if (operation.event.isResume()) {
-      operation.device.media().playPause();
+      service.playPause();
     } else if (operation.event.isStop()) {
-      operation.device.media().stop();
+      service.stop();
     }
   });
 
@@ -107,7 +113,7 @@ function RendererViewModel(manager, input) {
   }).filter(function (operation) {
     return operation.peer !== '<no-peer>';
   }).onValue(function (operation) {
-    operation.peer.apply().push(operation.update);
+    operation.peer.service.apply().push(operation.update);
   });
 
   var started = new Bacon.Bus();

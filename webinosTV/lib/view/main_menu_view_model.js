@@ -12,9 +12,13 @@ function MainMenuViewModel(manager, input) {
   };
 
   var targets = manager.toProperty().map(function (devices) {
-    return _.filter(devices, function (device) {
+    return _.chain(devices).filter(function (device) {
       return device.isTarget() && !device.isLocal();
-    });
+    }).map(function (device) {
+      return _.map(device.peers(), function (service) {
+        return {device: device, service: service, type: 'peer'};
+      });
+    }).flatten().value();
   });
 
   this.targets = function () {
