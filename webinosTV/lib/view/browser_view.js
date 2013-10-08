@@ -311,6 +311,10 @@ function BrowserView(viewModel) {
 
   var controlsViewModel = viewModel.controls();
   var controlsView = new ControlsView('.queuecontrols', null, controlsViewModel);
+  
+  $('.browserMainMenuButton').on('click', function(){ window.openMainmenu(); });
+  // $('.browserMainMenuButton').css('left', "-3.5em");
+
 
   function checkFadeout(){
     if(horizontalScroll.x >= 0){

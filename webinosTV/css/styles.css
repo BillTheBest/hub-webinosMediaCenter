@@ -135,6 +135,26 @@ p {
     margin: 0 12.5%;
 }
 
+.browserMainMenuButton{
+    z-index: 9;
+    position: absolute;
+    width: 1.5em;
+    height: 5em;
+    top: 1em;
+    background-size: cover;
+    background-repeat: no-repeat;
+    background-position: right;
+    cursor: pointer;
+    background-color: #3F3F3F;
+    background-image: url(../images/mode_selector.svg);
+    -webkit-transition: width 1s ease-in-out
+}
+
+.browserMainMenuButton:hover{
+    width: 6em;
+}
+
+
 #horizontalwrapper {
     position:absolute;
     left:5%;

@@ -178,8 +178,6 @@ function MainMenuView(viewModel){
   $('#toadvancedbrowserbutton').on('click', function(){ gotoPageById('#browser'); closeMainmenu(); });
   $('#torendererbutton').on('click', function(){ gotoPageById('#renderer'); closeMainmenu(); });
   $('#tocontrollerbutton').on('click', function(){ closeMainmenu(); openSelectTarget(); }); // gotoPageById('#controller');
-
-  $('#leftfadeout').on('click', function(){ openMainmenu(); });
   $('.overlay').on('click', function(){ closeMenus(); });
 
   closeSelectTarget();
