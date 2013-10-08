@@ -479,11 +479,18 @@ p {
     background-size: contain;
     background-repeat: no-repeat;
     background-position: right bottom;
-    bottom: 0px; right: 0px;
     width: 15%;
     height: 10%;
     position: absolute;
     margin: 1em;
+}
+
+.landscape .logoArea{
+    bottom: 0px; right: 0px;
+}
+
+.portrait .logoArea{
+    top: 0px; left: 0px;
 }
 
 .landscape .clickAreaBack:active{
