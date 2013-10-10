@@ -13,13 +13,16 @@ function RemoteViewModel(manager, input, mainMenuViewModel) {
     return input;
   };
 
-  var peer = manager.toProperty().sampledBy(mainMenuViewModel.selectedTarget(), function (devices, selectedTarget) {
-    if (selectedTarget === '<no-target>') return '<no-peer>';
+  var peer = manager.toProperty().sampledBy(Bacon.combineTemplate({
+    type: mainMenuViewModel.type(),
+    selectedDevice: mainMenuViewModel.selectedDevice()
+  }), function (devices, mainMenu) {
+    if (mainMenu.type !== 'remote' || mainMenu.selectedDevice === '<no-device>') return '<no-peer>';
 
     gotoPageById('#controller');
-    window.closeSelectTarget();
+    window.closeSelectDevice();
 
-    return devices[selectedTarget.device].services()[selectedTarget.service];
+    return devices[mainMenu.selectedDevice.device].services()[mainMenu.selectedDevice.service];
   });
 
   var keys = new Bacon.Bus();

@@ -172,7 +172,7 @@ function NavigationView (viewModel) {
 
 function MainMenuView(viewModel){
   var navigationView = new NavigationView(viewModel);
-  var selectDeviceListView = new SelectDeviceListView(viewModel.targets(), viewModel.selectedTarget());
+  var selectDeviceListView = new SelectDeviceListView(viewModel.devices(), viewModel.selectedDevice());
   calcSize();
 
   $('#toadvancedbrowserbutton').on('click', function(){ gotoPageById('#browser'); closeMainmenu(); });
