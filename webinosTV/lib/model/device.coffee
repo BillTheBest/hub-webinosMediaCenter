@@ -161,6 +161,7 @@ class Device extends Bacon.EventStream
     @peers = -> _.chain(services).filter(({ref}) -> ref instanceof PeerService).pluck('ref').value()
     @isSource = => @mediacontent().length or @television()?
     @isTarget = => @upnp().length > 0 or @peers().length > 0
+    @isPayment = => @payment()?
     @refresh = (force = no) =>
       now = Date.now()
       return if refresh? and refresh >= (now - interval) and not force
