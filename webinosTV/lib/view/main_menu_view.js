@@ -175,10 +175,29 @@ function MainMenuView(viewModel){
   var selectDeviceListView = new SelectDeviceListView(viewModel.devices(), viewModel.selectedDevice());
   calcSize();
 
-  $('#toadvancedbrowserbutton').on('click', function(){ gotoPageById('#browser'); closeMainmenu(); });
-  $('#torendererbutton').on('click', function(){ gotoPageById('#renderer'); closeMainmenu(); });
-  $('#tocontrollerbutton').on('click', function(){ closeMainmenu(); openSelectDevice(); }); // gotoPageById('#controller');
-  $('.overlay').on('click', function(){ closeMenus(); });
+  $('#toadvancedbrowserbutton').on('click', function() {
+    setTimeout(function () {
+      gotoPageById('#browser'); closeMainmenu();
+    }, 0);
+  });
+
+  $('#torendererbutton').on('click', function() {
+    setTimeout(function () {
+      gotoPageById('#renderer'); closeMainmenu();
+    }, 0);
+  });
+
+  $('#tocontrollerbutton').on('click', function() {
+    setTimeout(function () {
+      closeMainmenu(); openSelectDevice();
+    }, 0);
+  });
+
+  $('.overlay').on('click', function() {
+    setTimeout(function () {
+      closeMenus();
+    }, 0);
+  });
 
   closeSelectDevice();
 
