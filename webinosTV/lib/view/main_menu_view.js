@@ -4,17 +4,17 @@ var _ = require('../util/objectscore.coffee');
 var address = require('../util/address.coffee');
 
 
-function SelectTargetListView(items, selection) {
+function SelectDeviceListView(items, selection) {
   var self = this;
   this.scroll = undefined;
   this.tappedOn = 0;
 
   this.refresh = function () {
-    if ($('#selecttargetlist').children().length > 0) {
+    if ($('#selectDevicelist').children().length > 0) {
       if (typeof self.scroll === 'undefined') {
-        self.scroll = new IScroll('#st_wrapper', {snap: '#selecttargetlist li', momentum: false});
+        self.scroll = new IScroll('#st_wrapper', {snap: '#selectDevicelist li', momentum: false});
       }
-      self.scroll.options.snap = document.querySelectorAll('#selecttargetlist li');
+      self.scroll.options.snap = document.querySelectorAll('#selectDevicelist li');
       self.scroll.refresh();
     }
   };
@@ -32,7 +32,7 @@ function SelectTargetListView(items, selection) {
   };
 
   items.onValue(function (items) {
-    var $list = $('#selecttargetlist');
+    var $list = $('#selectDevicelist');
     $list.empty();
 
     _.each(items, function (item) {
@@ -44,7 +44,7 @@ function SelectTargetListView(items, selection) {
     self.refresh();
   });
 
-  selection.apply($('#selecttargetlist').asEventStream('click').merge($('#selecttargetlist').asEventStream('touchend')).map(function (event) {
+  selection.apply($('#selectDevicelist').asEventStream('click').merge($('#selectDevicelist').asEventStream('touchend')).map(function (event) {
     return function (selection) {
       var $item = $(event.target).closest('li');
       if (!$item.length) return selection;
@@ -85,7 +85,7 @@ function NavigationView (viewModel) {
 
   function Navigate(direction) {
 
-    if($('#selecttarget').is(":visible")){
+    if($('#selectDevice').is(":visible")){
       window.clearTimeout(timeoutHandle);
       if(stNavVisible === false){
         stNavVisible = true;
@@ -101,11 +101,11 @@ function NavigationView (viewModel) {
               stCurPos--;
             break;
           case 'left':
-            window.closeSelectTarget();
+            window.closeSelectDevice();
             window.openMainmenu();
             break;
           case 'right':
-            window.closeSelectTarget();
+            window.closeSelectDevice();
             break;
           case 'enter':
             $(".nav_st.focus").click();
@@ -172,16 +172,15 @@ function NavigationView (viewModel) {
 
 function MainMenuView(viewModel){
   var navigationView = new NavigationView(viewModel);
-  var selectTargetListView = new SelectTargetListView(viewModel.targets(), viewModel.selectedTarget());
-
+  var selectDeviceListView = new SelectDeviceListView(viewModel.targets(), viewModel.selectedTarget());
+  calcSize();
 
   $('#toadvancedbrowserbutton').on('click', function(){ gotoPageById('#browser'); closeMainmenu(); });
   $('#torendererbutton').on('click', function(){ gotoPageById('#renderer'); closeMainmenu(); });
-  $('#tocontrollerbutton').on('click', function(){ closeMainmenu(); openSelectTarget(); }); // gotoPageById('#controller');
+  $('#tocontrollerbutton').on('click', function(){ closeMainmenu(); openSelectDevice(); }); // gotoPageById('#controller');
   $('.overlay').on('click', function(){ closeMenus(); });
 
-  closeSelectTarget();
-  calcSize();
+  closeSelectDevice();
 
   function calcSize(){
     var width = $(window).innerWidth();
@@ -196,11 +195,11 @@ function MainMenuView(viewModel){
     $('.mm_button').css("margin", margin);
     $('.mm_button').width($('.menu').width()-2*margin);
 
-    $('.mainmenulist').height(height-2*margin);
-    $('.mainmenulist').css("margin", margin);
+    $('.mainmenulist').height(height-4*margin);
+    $('.mainmenulist').css({margin: margin, top: margin*2});
     $('.mainmenulist').width($('.menu').width()-2*margin);
 
-    selectTargetListView.refresh();
+    selectDeviceListView.refresh();
   }
 
   function openMainmenu(){
@@ -214,28 +213,28 @@ function MainMenuView(viewModel){
     }
   }
 
-  function openSelectTarget(){
-    if(!$('#selecttarget').is(":visible")){
-      toggleSelectTarget();
+  function openSelectDevice(){
+    if(!$('#selectDevice').is(":visible")){
+      toggleSelectDevice();
     }
   }
-  function closeSelectTarget(){
-    if($('#selecttarget').is(":visible")){
-      toggleSelectTarget();
+  function closeSelectDevice(){
+    if($('#selectDevice').is(":visible")){
+      toggleSelectDevice();
     }
   }
   function closeMenus() {
     closeMainmenu();
-    closeSelectTarget();
+    closeSelectDevice();
   }
 
   function toggleMainmenu(){
     $('#mainmenu').toggle();
     toggleOverlay();
   }
-  function toggleSelectTarget(){
-    selectTargetListView.refresh();
-    $('#selecttarget').toggle();
+  function toggleSelectDevice(){
+    selectDeviceListView.refresh();
+    $('#selectDevice').toggle();
     toggleOverlay();
   }
   function toggleOverlay(){
@@ -260,7 +259,7 @@ function MainMenuView(viewModel){
   }
   window.openMainmenu=openMainmenu;
   window.closeMainmenu=closeMainmenu;
-  window.closeSelectTarget=closeSelectTarget;
+  window.closeSelectDevice=closeSelectDevice;
 }
 
 module.exports = MainMenuView;

@@ -38,6 +38,18 @@ p {
     text-overflow: ellipsis;
 }
 
+.landscape #remoteTarget{
+    position: absolute;
+    right: 15%;
+    top: 1em;
+}
+.portrait #remoteTarget{
+    position: absolute;
+    left: 1em;
+    top:15%;
+}
+
+
 .overlay {
     background: #000;
     opacity: .5;
@@ -139,7 +151,7 @@ p {
     z-index: 9;
     position: absolute;
     width: 1.5em;
-    height: 5em;
+    height: 3em;
     top: 1em;
     background-size: cover;
     background-repeat: no-repeat;
@@ -147,11 +159,11 @@ p {
     cursor: pointer;
     background-color: #3F3F3F;
     background-image: url(../images/mode_selector.svg);
-    -webkit-transition: width 1s ease-in-out
+    -webkit-transition: width 100ms ease-in-out
 }
 
 .browserMainMenuButton:hover{
-    width: 6em;
+    width: 3.5em;
 }
 
 
@@ -479,8 +491,6 @@ p {
     background-size: contain;
     background-repeat: no-repeat;
     background-position: right bottom;
-    width: 15%;
-    height: 10%;
     position: absolute;
     margin: 1em;
 }
@@ -600,6 +610,9 @@ border-radius: 100px;
 }
 .controlDele{
     background-image: url(../images/trash_playlist.svg);
+}
+.controlPaym{
+    background-image: url(../images/player_payment.svg);
 }
 .controlFull{
     background-image: url(../images/player_enter_fullscreen.svg);

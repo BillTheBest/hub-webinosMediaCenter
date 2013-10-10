@@ -235,11 +235,11 @@ function NavigationView (viewModel, listViews, horizontalScroll) {
           if(curCol < 5){
             curCol++;
             centerFocusedElement();
-          }else if(curCol == 5 && curRow[5] < 5)
+          }else if(curCol == 5 && curRow[5] < $(".controlButton.nav_qu").length-1)
             curRow[5]++;
           break;
         case 'left':
-          if(curCol == 5 && curRow[5] < 6 && curRow[5] > 0)
+          if(curCol == 5 && curRow[5] < $(".controlButton.nav_qu").length && curRow[5] > 0)
             curRow[5]--;
           else if(curCol > 0){
               curCol--;

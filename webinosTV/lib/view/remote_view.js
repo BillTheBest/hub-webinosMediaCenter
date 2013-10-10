@@ -8,7 +8,6 @@ function calcSize() {
   var width = window.innerWidth;
   var height = window.innerHeight;
 
-    console.log("adf");
   if(width > height){
     $("#orientation").removeClass('portrait');
     $("#orientation").addClass('landscape');

@@ -13,11 +13,6 @@ function ControlsView(parent, config, viewModel) {
     navclass: 'nav_qu'
   }, config || {});
 
-  var buttonCount = 5;
-  if (config.remove) buttonCount++;
-  if (config.fullscreen) buttonCount+=2;
-  if (config.highdef) buttonCount++;
-
   var cmode = $('<div class="controlButton controlMode '+config.navclass+'">');
   cmode.on('click', function(){ window.openMainmenu(); })
   var cprev = $('<div class="controlButton controlPrev '+config.navclass+'">');
@@ -26,6 +21,7 @@ function ControlsView(parent, config, viewModel) {
   var cfwrd = $('<div class="controlButton controlFwrd '+config.navclass+'">');
   var cnext = $('<div class="controlButton controlNext '+config.navclass+'">');
   var cdele = $('<div class="controlButton controlDele '+config.navclass+'">');
+  var cpaym = $('<div class="controlButton controlPaym '+config.navclass+'">');
   var cfull = $('<div class="controlButton controlFull '+config.navclass+'">');
   cfull.on('click', function(){ toggleFullscreen(); });
   var chres = $('<div class="controlButton controlHres '+config.navclass+'">');
@@ -35,7 +31,7 @@ function ControlsView(parent, config, viewModel) {
   var controls = $('<div class="' + (config.style || 'slim') + ' controlContainer">');
   var container = $('<div class="controlButtons">');
 
-  container.append([cprev, crewd, cplay, cfwrd, cnext]);
+  container.append([cprev, crewd, cplay, cfwrd, cnext, cpaym]);
   if (config.remove) container.append(cdele)
   if (config.fullscreen){
     container.prepend(cmode);
@@ -52,9 +48,27 @@ function ControlsView(parent, config, viewModel) {
   viewModel.remove().plug(cdele.asEventStream('click').merge(cdele.asEventStream('touchend')));
 
   $(parent).append(controls);
+  calcControlButtonWidth(config.navclass);
 
-  // $('.controlSbar div', controls).css({transition: 'width 1s linear'});
-  $('.controlButton', controls).css({width: (100 / buttonCount) + '%'});
+  window.showPaymentButton = showPaymentButton;
+  window.hidePaymentButton = hidePaymentButton;
+
+  function showPaymentButton(navclass){
+    $('.controlPaym.'+navclass).show();
+    calcControlButtonWidth(navclass);
+  }
+
+  function hidePaymentButton(navclass){
+    $('.controlPaym.'+navclass).hide();
+    calcControlButtonWidth(navclass);
+  }
+
+  function calcControlButtonWidth(navclass){
+    var buttonCount = $('.controlButton.'+navclass).length;
+    if(!$('.controlPaym.'+navclass).is(":visible")) buttonCount--;
+    $('.controlButton.'+navclass).css({width: (100 / buttonCount) + '%'});
+  }
+
 
   var length = 0, last = 0;
 

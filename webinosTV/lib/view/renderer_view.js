@@ -28,20 +28,16 @@ function NavigationView (viewModel) {
       if (direction !== 'enter') $(".nav_rd.focus").removeClass('focus');
       switch(direction){
         case 'right':
-          if(curPos < 6)
+          if(curPos < $(".nav_rd").length-1)
             curPos++;
           break;
         case 'left':
           if(curPos > 0)
             curPos--;
-          else if(curPos === 0){
-            navVisible = false;
-            $(".nav_rd").eq(curPos).removeClass('focus');
-            window.openMainmenu();
-          }
           break;
         case 'enter':
           if(navVisible) $(".nav_rd.focus").click();
+          if(curPos === 0) resetNavVisible();
           break;
       }
     }
@@ -54,6 +50,12 @@ function NavigationView (viewModel) {
       navVisible=false;
       $(".nav_rd").eq(curPos).removeClass('focus');
     }, 5000);
+  }
+
+  function resetNavVisible(){
+    window.clearTimeout(timeoutHandle);
+    navVisible=false;
+    $(".nav_rd").eq(curPos).removeClass('focus');
   }
 
   function navlog(direction) {
