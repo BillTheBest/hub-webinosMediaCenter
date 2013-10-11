@@ -1,11 +1,15 @@
 var _ = require('underscore');
 
+var Promise = require('promise');
+
 var Bacon = require('baconjs');
 var bjq = require('bacon.jquery');
 
+var payment = require('../util/payment.coffee');
+
 var ControlsViewModel = require('./controls_view_model.js');
 
-function BrowserViewModel(manager, input) {
+function BrowserViewModel(manager, input, mainMenuViewModel) {
   input = input.filter(function () {
     return $('.pt-page-current').attr('id') === 'browser' && !$('.menu').is(":visible");
   });
@@ -68,6 +72,8 @@ function BrowserViewModel(manager, input) {
         });
       }).filter(function (item) {
         return !state.search.length || item.title.toLowerCase().indexOf(state.search.toLowerCase()) != -1;
+      }).filter(function (item) {
+        return !payment.decrypted(item.title);
       }).value();
     }).flatten().value();
   });
@@ -126,7 +132,16 @@ function BrowserViewModel(manager, input) {
         id: selectedItem.item.id,
         title: selectedItem.item.title
       }).value();
-      return _.extend(item, {device: device, service: device.services()[selectedItem.service]});
+
+      var decryptedItem = undefined;
+      if (payment.encrypted(item.title)) {
+        decryptedItem = _.chain(device.content()).values().flatten().findWhere({
+          // id: ???,
+          title: payment.decrypt(selectedItem.item.title)
+        }).value();
+      }
+
+      return _.extend(item, {device: device, service: device.services()[selectedItem.service], decryptedItem: decryptedItem});
     });
 
     var targets = _.map(operation.selectedTargets, function (selectedTarget) {
@@ -143,11 +158,21 @@ function BrowserViewModel(manager, input) {
         return Promise.fulfill({item: item, link: item.link})
       }
 
-      return item.service.getLink({
+      var link = item.service.getLink({
         folderId: item.id,
         fileName: item.title
-      }).then(function (link) {
-        return {item: item, link: link};
+      });
+
+      var decryptedLink = Promise.fulfill(undefined);
+      if (typeof item.decryptedItem !== 'undefined') {
+        decryptedLink = item.service.getLink({
+          folderId: item.decryptedItem.id,
+          fileName: item.decryptedItem.title
+        });
+      }
+
+      return Promise.every(link, decryptedLink).then(function (links) {
+        return {item: item, link: links[0], decryptedLink: links[1]};
       });
     });
 
@@ -197,7 +222,7 @@ function BrowserViewModel(manager, input) {
     return selectedPeer;
   };
 
-  var controls = new ControlsViewModel(selectedPeer);
+  var controls = new ControlsViewModel(manager, selectedPeer, mainMenuViewModel);
   this.controls = function () {
     return controls;
   };

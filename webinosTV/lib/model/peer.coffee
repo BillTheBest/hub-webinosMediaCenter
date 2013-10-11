@@ -68,6 +68,8 @@ class PeerService extends Service
   isRemote: -> no
   playOrPause: ->
     @send('playback:playOrPause')
+  decrypted: (link) ->
+    @send('playback:decrypted', {link})
   seek: (relative) ->
     @send('playback:seek', {relative})
   previous: ->
@@ -144,6 +146,11 @@ class LocalPeerService extends PeerService
             sink? new Bacon.Next(event)
           else
             next(no)
+        when 'playback:decrypted'
+          if playback.current
+            playback.stopping = yes
+            sink? new Bacon.Next(new Stop())
+            sink? new Bacon.Next(new Play(_.extend(queue[index], {link: content.link})))
         when 'playback:seek'
           sink? new Bacon.Next(new Seek(content.relative)) if playback.current
         when 'playback:previous'

@@ -1,6 +1,8 @@
 var Bacon = require('baconjs');
 
-function ControlsViewModel(peer) {
+var payment = require('../util/payment.coffee');
+
+function ControlsViewModel(manager, peer, mainMenuViewModel) {
   this.peer = function () {
     return peer;
   };
@@ -12,6 +14,15 @@ function ControlsViewModel(peer) {
 
   this.state = function () {
     return state;
+  };
+
+  var encrypted = state.map(function (state) {
+    if (state === '<no-state>') return false;
+    return state.playback.current && payment.encrypted(state.queue[state.index].item.title);
+  });
+
+  this.encrypted = function () {
+    return encrypted;
   };
 
   var commands = new Bacon.Bus();
@@ -53,6 +64,48 @@ function ControlsViewModel(peer) {
         operation.peer.service.seek(relative);
         break;
     }
+  });
+
+  var pay = new Bacon.Bus();
+  pay.onValue(function () {
+    mainMenuViewModel.selectedDevice().set('<no-device>');
+    mainMenuViewModel.type().set('payment');
+    window.openSelectDevice();
+  });
+
+  this.pay = function () {
+    return pay;
+  };
+
+  var mainMenu = Bacon.combineTemplate({
+    type: mainMenuViewModel.type(),
+    selectedDevice: mainMenuViewModel.selectedDevice()
+  }).filter(function (mainMenu) {
+    return mainMenu.type === 'payment' && mainMenu.selectedDevice !== '<no-device>';
+  }).doAction(function (mainMenu) {
+    window.closeSelectDevice();
+  });
+
+  var service = manager.toProperty().sampledBy(mainMenu, function (devices, mainMenu) {
+    return devices[mainMenu.selectedDevice.device].services()[mainMenu.selectedDevice.service];
+  });
+
+  Bacon.combineTemplate({
+    peer: peer, state: state
+  }).sampledBy(service, function (current, service) {
+    return {peer: current.peer, state: current.state, service: service};
+  }).filter(function (operation) {
+    return operation.peer !== '<no-peer>' && operation.peer.type === 'peer' && operation.state !== '<no-state>' && operation.state.playback.current;
+  }).onValue(function (operation) {
+    var item = operation.state.queue[operation.state.index];
+    operation.service.pay(null, {
+      description: payment.name(item.item.title),
+      currency: 'EUR',
+      itemPrice: payment.price(item.item.title)
+    }, 0, 0, function (challengeType, challenge) {}).then(function (proofOfPurchase) {
+      console.log('payed item', item.decryptedLink);
+      operation.peer.service.decrypted(item.decryptedLink);
+    });
   });
 
   var playOrPause = new Bacon.Bus();

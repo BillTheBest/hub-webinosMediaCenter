@@ -7,7 +7,7 @@ Service = require('./service.coffee')
 
 class PaymentService extends Service
   @findServices: (options, filter) ->
-    super(new ServiceType("http://webinos.org/api/payment"), options, filter).map (service) ->
+    super(new ServiceType("http://webinos.org/api/payment/mockwallet"), options, filter).map (service) ->
       new PaymentService(service.underlying())
   pay: (itemList, bill, customerID, sellerID, challengeCallback) ->
     return Promise.reject("Service not bound") unless @bound()

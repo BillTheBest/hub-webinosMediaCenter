@@ -175,6 +175,8 @@ function MainMenuView(viewModel){
   var selectDeviceListView = new SelectDeviceListView(viewModel.devices(), viewModel.selectedDevice());
   calcSize();
 
+  viewModel.title().assign($('#selectDeviceTag'), 'text');
+
   $('#toadvancedbrowserbutton').on('click', function() {
     setTimeout(function () {
       gotoPageById('#browser'); closeMainmenu();
@@ -189,6 +191,8 @@ function MainMenuView(viewModel){
 
   $('#tocontrollerbutton').on('click', function() {
     setTimeout(function () {
+      viewModel.selectedDevice().set('<no-device>');
+      viewModel.type().set('remote');
       closeMainmenu(); openSelectDevice();
     }, 0);
   });
@@ -277,6 +281,7 @@ function MainMenuView(viewModel){
     toggleMainmenu();
   }
   window.openMainmenu=openMainmenu;
+  window.openSelectDevice=openSelectDevice;
   window.closeMainmenu=closeMainmenu;
   window.closeSelectDevice=closeSelectDevice;
 }

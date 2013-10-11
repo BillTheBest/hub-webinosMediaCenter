@@ -16,6 +16,23 @@ function MainMenuViewModel(manager, input) {
     return type;
   };
 
+  var title = type.map(function (type) {
+    switch (type) {
+      case 'remote':
+        return 'Select a target';
+      case 'input':
+        return 'Select a source';
+      case 'payment':
+        return 'Select a wallet';
+      default:
+        return 'Nothing here';
+    }
+  });
+
+  this.title = function () {
+    return title;
+  };
+
   var devices = type.combine(manager.toProperty(), function (type, devices) {
     return _.chain(devices).filter(function (device) {
       switch (type) {

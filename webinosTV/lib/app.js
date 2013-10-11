@@ -45,9 +45,9 @@ $(document).ready(function () {
 
   var mainMenuViewModel = new MainMenuViewModel(manager, input);
   var mainMenuView = new MainMenuView(mainMenuViewModel);
-  var browserViewModel = new BrowserViewModel(manager, input);
+  var browserViewModel = new BrowserViewModel(manager, input, mainMenuViewModel);
   var browserView = new BrowserView(browserViewModel);
-  var rendererViewModel = new RendererViewModel(manager, input);
+  var rendererViewModel = new RendererViewModel(manager, input, mainMenuViewModel);
   var rendererView = new RendererView(rendererViewModel);
   var remoteViewModel = new RemoteViewModel(manager, input, mainMenuViewModel);
   var remoteView = new RemoteView(remoteViewModel);

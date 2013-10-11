@@ -6,7 +6,7 @@ var ControlsViewModel = require('./controls_view_model.js');
 
 var gotoPageById = require('./pagetransition.js');
 
-function RendererViewModel(manager, input) {
+function RendererViewModel(manager, input, mainMenuViewModel) {
   input = input.filter(function () {
     return $('.pt-page-current').attr('id') === 'renderer' && !$('.menu').is(":visible");;
   });
@@ -33,7 +33,7 @@ function RendererViewModel(manager, input) {
     };
   });
 
-  var controls = new ControlsViewModel(peer);
+  var controls = new ControlsViewModel(manager, peer, mainMenuViewModel);
   this.controls = function () {
     return controls;
   };

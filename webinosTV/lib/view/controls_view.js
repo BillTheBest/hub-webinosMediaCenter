@@ -40,6 +40,7 @@ function ControlsView(parent, config, viewModel) {
   if (config.highdef) container.append(chres);
   controls.append([container, csbar, ctime]);
 
+  viewModel.pay().plug(cpaym.asEventStream('click').merge(cpaym.asEventStream('touched')));
   viewModel.playOrPause().plug(cplay.asEventStream('click').merge(cplay.asEventStream('touchend')));
   viewModel.previous().plug(cprev.asEventStream('click').merge(cprev.asEventStream('touchend')));
   viewModel.next().plug(cnext.asEventStream('click').merge(cnext.asEventStream('touchend')));
@@ -50,8 +51,15 @@ function ControlsView(parent, config, viewModel) {
   $(parent).append(controls);
   calcControlButtonWidth(config.navclass);
 
-  window.showPaymentButton = showPaymentButton;
-  window.hidePaymentButton = hidePaymentButton;
+  viewModel.encrypted().onValue(togglePaymentButton);
+
+  function togglePaymentButton(showOrHide) {
+    if (showOrHide) {
+      showPaymentButton(config.navclass);
+    } else {
+      hidePaymentButton(config.navclass);
+    }
+  }
 
   function showPaymentButton(navclass){
     $('.controlPaym.'+navclass).show();
