@@ -53,3 +53,10 @@ $ npm install git+https://github.com/webinos/webinos-api-deviceStatus.git
 # $ cd $webinos-pzp-path
 $ npm install git+https://github.com/webinos/webinos-api-app2app.git
 ```
+
+## Payment API
+
+```
+# $ cd $webinos-pzp-path
+$ npm install git+https://github.com/webinos/webinos-api-payment
+```
