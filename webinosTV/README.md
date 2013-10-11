@@ -51,5 +51,5 @@ $ npm install git+https://github.com/webinos/webinos-api-deviceStatus.git
 
 ```
 # $ cd $webinos-pzp-path
-$ npm install https://github.com/webinos/webinos-api-app2app.git
+$ npm install git+https://github.com/webinos/webinos-api-app2app.git
 ```
