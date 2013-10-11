@@ -67,6 +67,7 @@ function ListView(items, selection, list, wrapper, fadeout) {
 
 
   selection.apply($(list).asEventStream('click').merge($(list).asEventStream('touchend')).filter(function(e){
+    if(!e.screenY||!clickStartEvent) return true;
     var justClick = (Date.now()-tappedOn<250);
     var movedDelta = Math.max(e.screenY, clickStartEvent.screenY)-Math.min(e.screenY, clickStartEvent.screenY)+Math.max(e.screenX, clickStartEvent.screenX)-Math.min(e.screenX, clickStartEvent.screenX);
     return justClick && movedDelta<10;
