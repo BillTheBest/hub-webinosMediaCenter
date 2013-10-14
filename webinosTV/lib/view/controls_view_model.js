@@ -18,7 +18,7 @@ function ControlsViewModel(manager, peer, mainMenuViewModel) {
 
   var encrypted = state.map(function (state) {
     if (state === '<no-state>') return false;
-    return state.playback.current && payment.encrypted(state.queue[state.index].item.title);
+    return state.playback.current && state.index < state.queue.length && payment.encrypted(state.queue[state.index].item.title);
   });
 
   this.encrypted = function () {
@@ -67,9 +67,18 @@ function ControlsViewModel(manager, peer, mainMenuViewModel) {
   });
 
   var pay = new Bacon.Bus();
-  pay.onValue(function () {
+  Bacon.combineTemplate({
+    peer: peer, state: state
+  }).sampledBy(pay).filter(function (operation) {
+    return operation.peer !== '<no-peer>' && operation.peer.type === 'peer' && operation.state !== '<no-state>' && operation.state.playback.current;
+  }).doAction(function (operation) {
+    if (operation.state.playback.playing) {
+      operation.peer.service.playOrPause();
+    }
+  }).onValue(function () {
     mainMenuViewModel.selectedDevice().set('<no-device>');
     mainMenuViewModel.type().set('payment');
+
     window.openSelectDevice();
   });
 

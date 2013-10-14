@@ -142,7 +142,7 @@ function ContentListView(viewModel) {
     if (typeof item.type === 'string' && item.type.toLowerCase().indexOf('image') === 0) {
       html = '<li class="imageContent nav_co"><div class="thumbnail" style="background-image:url(' + item.thumbnailURIs[0] + ')">' + addSelectIcon() + '</div></li>';
     } else {
-      html = '<li class="textContent nav_co"><div><p>' + payment.name(item.title) + '</p>' + addSelectIcon() + '</div></li>';
+      html = '<li class="textContent nav_co"><div><p>' + payment.name(item.title) + (payment.encrypted(item.title) ? ' (' + payment.price(item.title) + '€)' : '') + '</p>' + addSelectIcon() + '</div></li>';
     }
     return html;
   };
@@ -191,7 +191,7 @@ function QueueListView(viewModel) {
     if (typeof value.item.type === 'string' && value.item.type.toLowerCase().indexOf('image') === 0) {
       html = '<li class="imageContent nav_qu"><img src="' + value.item.thumbnailURIs[0] + '">';
     } else {
-      html = '<li class="textContent nav_qu"><p>' + payment.name(value.item.title) + '</p>';
+      html = '<li class="textContent nav_qu"><p>' + (value.current ? 'P ' : '') + payment.name(value.item.title) + (payment.encrypted(value.item.title) ? ' (' + payment.price(value.item.title) + '€)' : '') + '</p>';
     }
     html += '<img class="selectIcon" src="images/remove.svg"></li>';
     return html;
