@@ -192,7 +192,7 @@ function QueueListView(viewModel) {
     if (typeof value.item.type === 'string' && value.item.type.toLowerCase().indexOf('image') === 0) {
       html = '<li class="imageContent nav_qu"><img src="' + value.item.thumbnailURIs[0] + '">';
     } else {
-      html = '<li class="textContent nav_qu"><p>' + (value.current ? 'P ' : '') + payment.name(value.item.title) + (payment.encrypted(value.item.title) ? ' (' + payment.price(value.item.title) + '€)' : '') + '</p>';
+      html = '<li class="textContent nav_qu"><p>' + (value.current ? '▶ ' : '') + payment.name(value.item.title) + (payment.encrypted(value.item.title) ? ' (' + payment.price(value.item.title) + '€)' : '') + '</p>';
     }
     html += '<img class="selectIcon" src="images/remove.svg"></li>';
     return html;
