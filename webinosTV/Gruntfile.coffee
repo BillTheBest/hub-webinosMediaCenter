@@ -63,10 +63,19 @@ module.exports = (grunt) ->
         files: ['lib/**/*.coffee', 'lib/**/*.js']
         tasks: ['browserify:app']
 
+    compress:
+      app:
+        options:
+          archive: 'webinosTV.wgt'
+          mode: 'zip'
+        src: ['css/*', 'dist/*', 'images/*', 'config.xml', 'index.html', 'webinosTV.png']
+
   grunt.loadNpmTasks 'grunt-browserify'
   grunt.loadNpmTasks 'grunt-contrib-clean'
   grunt.loadNpmTasks 'grunt-contrib-uglify'
   grunt.loadNpmTasks 'grunt-contrib-watch'
+  grunt.loadNpmTasks 'grunt-contrib-compress'
 
   grunt.registerTask 'dist', ['clean:dist', 'browserify:wrt', 'browserify:deps', 'browserify:app']
+  grunt.registerTask 'ship', ['dist', 'compress:app']
   grunt.registerTask 'default', ['dist']
