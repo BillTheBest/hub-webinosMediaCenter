@@ -49,34 +49,24 @@ function ControlsView(parent, config, viewModel) {
   viewModel.remove().plug(cdele.asEventStream('click').merge(cdele.asEventStream('touchend')));
 
   $(parent).append(controls);
-  calcControlButtonWidth(config.navclass);
+  calcControlButtonWidth();
 
   viewModel.encrypted().onValue(togglePaymentButton);
 
   function togglePaymentButton(showOrHide) {
     if (showOrHide) {
-      showPaymentButton(config.navclass);
+      $('.controlPaym.'+config.navclass+"_hide").removeClass(config.navclass+"_hide").addClass(config.navclass).show();
     } else {
-      hidePaymentButton(config.navclass);
+      $('.controlPaym.'+config.navclass).removeClass(config.navclass).addClass(config.navclass+"_hide").hide();
     }
+    calcControlButtonWidth();
   }
 
-  function showPaymentButton(navclass){
-    $('.controlPaym.'+navclass).show();
-    calcControlButtonWidth(navclass);
+  function calcControlButtonWidth(){
+    var buttonCount = $('.controlButton.'+config.navclass).length;
+    // if(!$('.controlPaym.'+config.navclass).is(":visible")) buttonCount--;
+    $('.controlButton.'+config.navclass).css({width: (100 / buttonCount) + '%'});
   }
-
-  function hidePaymentButton(navclass){
-    $('.controlPaym.'+navclass).hide();
-    calcControlButtonWidth(navclass);
-  }
-
-  function calcControlButtonWidth(navclass){
-    var buttonCount = $('.controlButton.'+navclass).length;
-    if(!$('.controlPaym.'+navclass).is(":visible")) buttonCount--;
-    $('.controlButton.'+navclass).css({width: (100 / buttonCount) + '%'});
-  }
-
 
   var length = 0, last = 0;
 
