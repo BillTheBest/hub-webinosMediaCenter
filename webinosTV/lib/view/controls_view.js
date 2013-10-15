@@ -64,7 +64,6 @@ function ControlsView(parent, config, viewModel) {
 
   function calcControlButtonWidth(){
     var buttonCount = $('.controlButton.'+config.navclass).length;
-    // if(!$('.controlPaym.'+config.navclass).is(":visible")) buttonCount--;
     $('.controlButton.'+config.navclass).css({width: (100 / buttonCount) + '%'});
   }
 
