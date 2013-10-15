@@ -112,7 +112,6 @@ function ControlsViewModel(manager, peer, mainMenuViewModel) {
       currency: 'EUR',
       itemPrice: payment.price(item.item.title)
     }, 0, 0, function (challengeType, challenge) {}).then(function (proofOfPurchase) {
-      console.log('payed item', item.decryptedLink);
       operation.peer.service.decrypted(item.decryptedLink);
     });
   });

@@ -82,6 +82,8 @@ class PeerService extends Service
     @send('queue:append', {items})
   remove: (items) ->
     @send('queue:remove', {items})
+  overwrite: (state) ->
+    @send('state:overwrite', {state})
 
 class LocalPeerService extends PeerService
   constructor: (channel, peer) ->
@@ -173,6 +175,15 @@ class LocalPeerService extends PeerService
             queue.splice(i, 1)
           if index in content.items
             index = 0; next(no)
+        when 'state:overwrite'
+          if playback.current
+            playback.stopping = yes
+            sink? new Bacon.Next(new Stop())
+          index = content.state.index
+          queue = content.state.queue
+          if content.state.playback.playing
+            sink? new Bacon.Next(new Play(queue[index]))
+            sink? new Bacon.Next(new Seek(content.state.playback.relative))
       {playback, index, queue}
     @initialize = =>
       state.onValue (state) => @send('synchronize', state)

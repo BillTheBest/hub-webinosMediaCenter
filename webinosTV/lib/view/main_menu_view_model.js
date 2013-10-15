@@ -11,7 +11,7 @@ function MainMenuViewModel(manager, input) {
     return input;
   };
 
-  var type = bjq.Model('remote'); // remote, input, payment
+  var type = bjq.Model('remote'); // remote, input, payment, push, pull
   this.type = function () {
     return type;
   };
@@ -19,8 +19,10 @@ function MainMenuViewModel(manager, input) {
   var title = type.map(function (type) {
     switch (type) {
       case 'remote':
+      case 'push':
         return 'Select a target';
       case 'input':
+      case 'pull':
         return 'Select a source';
       case 'payment':
         return 'Select a wallet';
@@ -37,17 +39,22 @@ function MainMenuViewModel(manager, input) {
     return _.chain(devices).filter(function (device) {
       switch (type) {
         case 'remote':
-          return device.isTarget() && !device.isLocal();
+          return !device.isLocal() && device.isTarget();
         case 'input':
           return false; // TODO: Define 'input' device.
         case 'payment':
           return device.isPayment();
+        case 'push':
+        case 'pull':
+          return !device.isLocal() && device.peers().length > 0;
         default:
           return false;
       }
     }).map(function (device) {
       switch (type) {
         case 'remote':
+        case 'push':
+        case 'pull':
           return _.map(device.peers(), function (service) {
             return {device: device, service: service, type: 'peer'};
           });

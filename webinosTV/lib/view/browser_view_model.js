@@ -229,7 +229,7 @@ function BrowserViewModel(manager, input, mainMenuViewModel) {
 
   var queue = selectedPeer.flatMapLatest(function (selectedPeer) {
     if (selectedPeer === '<no-peer>' || selectedPeer.type !== 'peer') return Bacon.once([]);
-    return selectedPeer.service.state().log('state').map(function (state) {
+    return selectedPeer.service.state().map(function (state) {
       if (state.index < state.queue.length) {
         var queue = _.clone(state.queue);
         queue[state.index] = _.chain(queue[state.index]).clone().extend({current: true}).value();
@@ -237,7 +237,7 @@ function BrowserViewModel(manager, input, mainMenuViewModel) {
       } else {
         return state.queue;
       }
-    }).log('state:map').skipDuplicates(_.isEqual);
+    }).skipDuplicates(_.isEqual);
   }).toProperty([]);
 
   this.queue = function () {

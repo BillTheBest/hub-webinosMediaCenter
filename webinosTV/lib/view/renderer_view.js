@@ -100,7 +100,16 @@ function RendererView(viewModel) {
       self.playItem(event.item().item.type,event.item().link);
       self.videoRenderer.length?self.videoRenderer[0].play():void 0;
     } else if(event.isSeek()){
-      self.videoRenderer.length?self.videoRenderer[0].currentTime=self.videoRenderer[0].duration*event.relative():void 0;
+      var video = self.videoRenderer[0];
+      var setCurrentTime = function () {
+        video.currentTime = Math.min(Math.max(video.duration * event.relative(), 0), video.duration);
+      };
+
+      if (video.readyState > 0) {
+        setCurrentTime();
+      } else {
+        $(video).one('loadedmetadata', setCurrentTime);
+      }
     } else if(event.isPause()){
       self.videoRenderer.length?self.videoRenderer[0].pause():void 0;
     } else if(event.isResume()){

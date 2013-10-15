@@ -197,6 +197,22 @@ function MainMenuView(viewModel){
     }, 0);
   });
 
+  $('#topushstatebutton').on('click', function() {
+    setTimeout(function () {
+      viewModel.selectedDevice().set('<no-device>');
+      viewModel.type().set('push');
+      closeMainmenu(); openSelectDevice();
+    }, 0);
+  });
+
+  $('#topullstatebutton').on('click', function() {
+    setTimeout(function () {
+      viewModel.selectedDevice().set('<no-device>');
+      viewModel.type().set('pull');
+      closeMainmenu(); openSelectDevice();
+    }, 0);
+  });
+
   $('.overlay').on('click', function() {
     setTimeout(function () {
       closeMenus();

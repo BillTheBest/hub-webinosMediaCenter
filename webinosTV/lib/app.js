@@ -51,4 +51,38 @@ $(document).ready(function () {
   var rendererView = new RendererView(rendererViewModel);
   var remoteViewModel = new RemoteViewModel(manager, input, mainMenuViewModel);
   var remoteView = new RemoteView(remoteViewModel);
+
+  var mainMenu = Bacon.combineTemplate({
+    type: mainMenuViewModel.type(),
+    selectedDevice: mainMenuViewModel.selectedDevice()
+  }).filter(function (mainMenu) {
+    return _.contains(['push', 'pull'], mainMenu.type) && mainMenu.selectedDevice !== '<no-device>';
+  }).doAction(function (mainMenu) {
+    window.closeSelectDevice();
+  });
+
+  var selection = manager.toProperty().sampledBy(mainMenu, function (devices, mainMenu) {
+    return {type: mainMenu.type, peer: devices[mainMenu.selectedDevice.device].services()[mainMenu.selectedDevice.service]};
+  });
+
+  peer.sampledBy(selection, function (peer, selection) {
+    return {peer: peer, selection: selection};
+  }).filter(function (operation) {
+    return operation.peer !== '<no-peer>';
+  }).flatMapLatest(function (operation) {
+    switch (operation.selection.type) {
+      case 'push':
+        return operation.peer.state().take(1).map(function (state) {
+          return {peer: operation.selection.peer, state: state};
+        });
+      case 'pull':
+        return operation.selection.peer.state().take(1).map(function (state) {
+          return {peer: operation.peer, state: state};
+        });
+      default:
+        return Bacon.never();
+    }
+  }).onValue(function (command) {
+    command.peer.overwrite(command.state);
+  });
 });
