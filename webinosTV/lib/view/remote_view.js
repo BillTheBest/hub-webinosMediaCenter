@@ -86,6 +86,8 @@ function RemoteView(viewModel) {
   viewModel.right().plug($('.clickAreaRight').asEventStream('click').merge($('.clickAreaRight').asEventStream('touchend')));
   viewModel.down().plug($('.clickAreaDown').asEventStream('click').merge($('.clickAreaDown').asEventStream('touchend')));
 
+  $('.changeModeButton').on('click', function() { window.openMainmenu(); });
+  $('.clickAreaBack').on('click', function() { window.openMainmenu(); });
   calcSize();
 }
 
