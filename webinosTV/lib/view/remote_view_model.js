@@ -25,6 +25,10 @@ function RemoteViewModel(manager, input, mainMenuViewModel) {
     return devices[mainMenu.selectedDevice.device].services()[mainMenu.selectedDevice.service];
   });
 
+  this.peer = function () {
+    return peer;
+  };
+
   var keys = new Bacon.Bus();
   peer.sampledBy(keys, function (peer, key) {
     return {peer: peer, key: key};

@@ -1,4 +1,5 @@
 var $ = require('jquery');
+var address = require('../util/address.coffee');
 
 $(window).resize(function() {
   calcSize();
@@ -55,6 +56,12 @@ function calcSize() {
 function NavigationView (viewModel) {
 
   viewModel.input().onValue(Navigate);
+  viewModel.peer().map(function (peer) {
+    if (peer === '<no-peer>') return 'No peer selected';
+    return address.friendlyName(peer.address());
+  }).onValue(function (friendlyName) {
+    $("#remoteTarget").text(friendlyName);
+  });
 
   function Navigate(direction) {
     switch(direction){
