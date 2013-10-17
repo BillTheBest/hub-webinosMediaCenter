@@ -74,6 +74,7 @@ function ListView(items, selection, list, wrapper, fadeout) {
     return justClick && movedDelta<10;
   }).map(function (event) {
     return function (selection) {
+      $('#searchfield').blur();
       var $item = $(event.target).closest('li');
       if (!$item.length) return selection;
       var id = $item.data('id');
@@ -315,7 +316,7 @@ function BrowserView(viewModel) {
   var controlsView = new ControlsView('.queuecontrols', null, controlsViewModel);
 
   $('.browserMainMenuButton').on('click', function(){ window.openMainmenu(); });
-  // $('.browserMainMenuButton').css('left', "-3.5em");
+  $('.searchfield').on('click', function() { $('#searchfield').focus(); });
 
 
   function checkFadeout(){
