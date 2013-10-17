@@ -133,13 +133,19 @@ RendererView.prototype.playItem = function(type, url){
 
   type = type.split(" ")[0].toLowerCase();
   switch(type){
-    case "video":
     case "audio":
+      $(self.videoRenderer).show();
+      $(self.imageRenderer).hide();
+      self.videoRenderer[0].src = url;
+      $(self.videoRenderer).css({width: '0%'});
+      break;
+    case "video":
     case "channel":
       $(self.videoRenderer).show();
       $(self.imageRenderer).hide();
       self.videoRenderer[0].src = url;
-    break;
+      $(self.videoRenderer).css({width: '100%'});
+      break;
     case "image":
       $(self.videoRenderer).hide();
       $(self.imageRenderer).show();
