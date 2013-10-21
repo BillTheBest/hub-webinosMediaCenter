@@ -1,60 +1,14 @@
-<?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<svg
-   xmlns:dc="http://purl.org/dc/elements/1.1/"
-   xmlns:cc="http://creativecommons.org/ns#"
-   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
-   xmlns:svg="http://www.w3.org/2000/svg"
-   xmlns="http://www.w3.org/2000/svg"
-   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
-   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
-   viewBox="0 -256 1792 1792"
-   id="svg2989"
-   version="1.1"
-   inkscape:version="0.48.3.1 r9886"
-   width="48px"
-   height="40px"
-
-   sodipodi:docname="shopping_cart_font_awesome.svg">
-  <metadata
-     id="metadata2999">
-    <rdf:RDF>
-      <cc:Work
-         rdf:about="">
-        <dc:format>image/svg+xml</dc:format>
-        <dc:type
-           rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
-      </cc:Work>
-    </rdf:RDF>
-  </metadata>
-  <defs
-     id="defs2997" />
-  <sodipodi:namedview
-     pagecolor="#ffffff"
-     bordercolor="#666666"
-     borderopacity="1"
-     objecttolerance="10"
-     gridtolerance="10"
-     guidetolerance="10"
-     inkscape:pageopacity="0"
-     inkscape:pageshadow="2"
-     inkscape:window-width="640"
-     inkscape:window-height="480"
-     id="namedview2995"
-     showgrid="false"
-     inkscape:zoom="0.13169643"
-     inkscape:cx="896"
-     inkscape:cy="896"
-     inkscape:window-x="0"
-     inkscape:window-y="25"
-     inkscape:window-maximized="0"
-     inkscape:current-layer="svg2989" />
-  <g
-      transform="translate(0,-30) matrix(0.8,0,0,-0.8,168.338983,1209.4915)" fill="#ffffff"
-      id="g2991">
-    <path
-       d="M 640,0 Q 640,-53 602.5,-90.5 565,-128 512,-128 459,-128 421.5,-90.5 384,-53 384,0 384,53 421.5,90.5 459,128 512,128 565,128 602.5,90.5 640,53 640,0 z m 896,0 q 0,-53 -37.5,-90.5 -37.5,-37.5 -90.5,-37.5 -53,0 -90.5,37.5 Q 1280,-53 1280,0 q 0,53 37.5,90.5 37.5,37.5 90.5,37.5 53,0 90.5,-37.5 Q 1536,53 1536,0 z m 128,1088 V 576 q 0,-24 -16,-42.5 Q 1632,515 1607,512 L 563,390 q 1,-7 4.5,-21.5 3.5,-14.5 6,-26.5 2.5,-12 2.5,-22 0,-16 -24,-64 h 920 q 26,0 45,-19 19,-19 19,-45 0,-26 -19,-45 -19,-19 -45,-19 H 448 q -26,0 -45,19 -19,19 -19,45 0,14 11,39.5 11,25.5 29.5,59.5 18.5,34 20.5,38 L 268,1152 H 64 q -26,0 -45,19 -19,19 -19,45 0,26 19,45 19,19 45,19 h 256 q 16,0 28.5,-6.5 12.5,-6.5 20,-15.5 7.5,-9 13,-24.5 5.5,-15.5 7.5,-26.5 2,-11 5.5,-29.5 3.5,-18.5 4.5,-25.5 h 1201 q 26,0 45,-19 19,-19 19,-45 z"
-       id="path2993"
-       inkscape:connector-curvature="0"
-    />
-  </g>
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Generator: Adobe Illustrator 15.0.0, SVG Export Plug-In . SVG Version: 6.00 Build 0)  -->
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg version="1.1" id="Ebene_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
+	 width="48px" height="40px" viewBox="-6 -6 60 52" enable-background="new 0 0 48 40" xml:space="preserve">
+<g>
+	<circle fill="#FFFFFF" cx="13.293" cy="34.293" r="2.707"/>
+	<circle fill="#FFFFFF" cx="31.706" cy="34.293" r="2.707"/>
+	<path fill="#FFFFFF" d="M42.869,4.524h-5.531l-1.059,4.504H5.458l5.13,20h23.86l4.321-18.263c0-0.001,0-0.001,0-0.002l0.006-0.022
+		l0.432-1.711h-0.029l0.396-1.684h3.296c0.778,0,1.409-0.631,1.409-1.41S43.648,4.524,42.869,4.524z M34.182,18H28v-6h7.588
+		L34.182,18z M19,18v-6h6v6H19z M25,21v5h-6v-5H25z M16,12v6h-5.518l-1.406-6H16z M11.193,21H16v5h-3.401L11.193,21z M28,26v-5
+		h5.471l-1.406,5H28z"/>
+</g>
 </svg>
