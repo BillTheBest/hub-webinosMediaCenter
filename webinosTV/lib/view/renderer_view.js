@@ -3,17 +3,9 @@ var Bacon = require('baconjs');
 
 var ControlsView = require('./controls_view.js');
 
-$(window).resize(function() {
-
-});
-
-$(document).ready(function() {
-
-});
-
 var IMAGE_SLIDESHOW_INTERVAL = 5000;
 
-function NavigationView (viewModel) {
+function NavigationView (viewModel, showRendererControlls) {
   var curPos = 0;
   var navVisible = false;
   var timeoutHandle;
@@ -22,6 +14,7 @@ function NavigationView (viewModel) {
 
   function Navigate(direction) {
     window.clearTimeout(timeoutHandle);
+    showRendererControlls();
     if(navVisible === false){
       navVisible = true;
     }else{
@@ -67,6 +60,18 @@ function RendererView(viewModel) {
   var self = this;
   self.viewModel = viewModel;
   self.imageTimer =null;
+  var rendererControllsTimeout;
+
+  $('#renderer').on('mousemove', function(){ showRendererControlls(); });
+
+
+  function showRendererControlls(){
+    $('.rendererControlls').fadeIn();
+    window.clearTimeout(rendererControllsTimeout);
+    rendererControllsTimeout = setTimeout(function() {
+      $('.rendererControlls').fadeOut();
+    }, 5000);
+  };
 
   var controlsViewModel = viewModel.controls();
   var controlsView = new ControlsView('.rendererControlls', {
@@ -95,6 +100,7 @@ function RendererView(viewModel) {
   //command
   viewModel.events().onValue(function(event){
     if(event.isPlay()){
+      showRendererControlls();
       if (self.videoRenderer.length) self.videoRenderer[0].src = '';
       self.videoRenderer.length?self.videoRenderer[0].pause():void 0;
       self.playItem(event.item().item.type,event.item().link);
@@ -120,7 +126,19 @@ function RendererView(viewModel) {
     }
   })
 
-  var navigationView = new NavigationView(viewModel);
+  var navigationView = new NavigationView(viewModel, showRendererControlls);
+
+  function positionRendererControlls(){
+    $('.rendererControlls').css("margin", "0 "+ ($('#renderer').width()-$('.rendererControlls').width())/2 +"px");
+  }
+
+  $(window).resize(function() {
+    positionRendererControlls();
+  });
+
+  $(document).ready(function() {
+    positionRendererControlls();
+  });
 }
 
 RendererView.prototype.playItem = function(type, url){
