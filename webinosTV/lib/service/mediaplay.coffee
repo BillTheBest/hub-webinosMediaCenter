@@ -6,10 +6,10 @@ promisify = require('../util/promisify.coffee')
 
 Service = require('./service.coffee')
 
-class MediaService extends Service
+class MediaPlayService extends Service
   @findServices: (options, filter) ->
-    super(new ServiceType("http://webinos.org/api/media"), options, filter).map (service) ->
-      new MediaService(service.underlying())
+    super(new ServiceType("http://webinos.org/api/mediaplay"), options, filter).map (service) ->
+      new MediaPlayService(service.underlying())
   constructor: (underlying) ->
     sink = undefined
     events = new Bacon.EventStream (newSink) =>
@@ -18,25 +18,23 @@ class MediaService extends Service
         unsub() if reply is Bacon.noMore or event.isEnd()
       unsub = =>
         sink = undefined
-        @underlying().unregisterListenersOnExit() if @bound()
+        @underlying().removeAllListeners() if @bound()
       unless @bound()
         sink? new Bacon.End()
       else
-        promisify('registerListeners', @underlying())({
-          onPlay: ({currentMedia, volume}) => sink? new Bacon.Next(new Play(this, currentMedia, volume))
+        promisify('addListener', @underlying())({
+          onPlay: ({currentMedia, volume, length, position}) => sink? new Bacon.Next(new Play(this, currentMedia, volume, length, position))
           onPause: => sink? new Bacon.Next(new Pause(this))
           onStop: => sink? new Bacon.Next(new Stop(this))
-          onEnd: (currentMedia) => sink? new Bacon.Next(new End(this, currentMedia))
-          onVolumeUP: (volume) => sink? new Bacon.Next(new Volume(this, volume))
-          onVolumeDOWN: (volume) => sink? new Bacon.Next(new Volume(this, volume))
-          onVolumeSet: (volume) => sink? new Bacon.Next(new Volume(this, volume))
+          onEnd: => sink? new Bacon.Next(new End(this))
+          onVolume: (volume) => sink? new Bacon.Next(new Volume(this, volume))
         })
         .catch (error) ->
           sink? new Bacon.Error(error)
           sink? new Bacon.End()
         .then(=> @isPlaying())
-        .then ({isPlaying, currentMedia, volume}) =>
-          sink? new Bacon.Next(new Play(this, currentMedia, volume)) if isPlaying
+        .then ({isPlaying, currentMedia, volume, length, position}) =>
+          sink? new Bacon.Next(new Play(this, currentMedia, volume, length, position)) if isPlaying
       unsub
     state = events.scan {
       playback:
@@ -68,42 +66,18 @@ class MediaService extends Service
   isPlaying: ->
     return Promise.reject("Service not bound") unless @bound()
     promisify('isPlaying', @underlying())()
-  stepForward: ->
+  seek: (step) ->
     return Promise.reject("Service not bound") unless @bound()
-    promisify('stepforward', @underlying())()
-  bigStepForward: ->
-    return Promise.reject("Service not bound") unless @bound()
-    promisify('bigStepforward', @underlying())()
-  stepBackward: ->
-    return Promise.reject("Service not bound") unless @bound()
-    promisify('stepback', @underlying())()
-  bigStepBackward: ->
-    return Promise.reject("Service not bound") unless @bound()
-    promisify('bigStepback', @underlying())()
+    promisify('seek', @underlying())(step)
   stop: ->
     return Promise.reject("Service not bound") unless @bound()
     promisify('stop', @underlying())()
-  volumeUp: ->
-    return Promise.reject("Service not bound") unless @bound()
-    promisify('volumeUP', @underlying())()
-  volumeDown: ->
-    return Promise.reject("Service not bound") unless @bound()
-    promisify('volumeDOWN', @underlying())()
-  volume: (volume) ->
+  setVolume: (volume) ->
     return Promise.reject("Service not bound") unless @bound()
     promisify('setVolume', @underlying())(volume)
-  increasePlaybackSpeed: ->
+  setSpeed: (speed) ->
     return Promise.reject("Service not bound") unless @bound()
-    promisify('increasePlaybackSpeed', @underlying())()
-  decreasePlaybackSpeed: ->
-    return Promise.reject("Service not bound") unless @bound()
-    promisify('decreasePlaybackSpeed', @underlying())()
-  showInfo: ->
-    return Promise.reject("Service not bound") unless @bound()
-    promisify('showInfo', @underlying())()
-  toggleSubtitle: ->
-    return Promise.reject("Service not bound") unless @bound()
-    promisify('toggleSubtitle', @underlying())()
+    promisify('setSpeed', @underlying())(speed)
 
 class Event
   constructor: (service) ->
@@ -115,10 +89,12 @@ class Event
   isVolume: -> no
 
 class Play extends Event
-  constructor: (service, media, volume) ->
+  constructor: (service, media, volume, length, position) ->
     super(service)
     @media = -> media
     @volume = -> volume
+    @length = -> length
+    @position = -> position
   isPlay: -> yes
 
 class Pause extends Event
@@ -128,9 +104,6 @@ class Stop extends Event
   isStop: -> yes
 
 class End extends Event
-  constructor: (service, media) ->
-    super(service)
-    @media = -> media
   isEnd: -> yes
 
 class Volume extends Event
@@ -139,4 +112,4 @@ class Volume extends Event
     @volume = -> volume
   isVolume: -> yes
 
-module.exports = MediaService
+module.exports = MediaPlayService

@@ -903,7 +903,7 @@
 	function isLocalAppMsg(msg) {
 		var ownId = this.ownSessionId.split(this.separator);
 		var toId  = msg.to.split(this.separator);
-		if (/\/[a-f0-9]+:\d+/.exec(msg.to) // must include /$hexstr:$num to be wrt
+        if (/\/[BI]ID[a-f0-9]+:\d+/.exec(msg.to) // must include /$hexstr:$num to be wrt
 				&& /\//.exec(this.ownSessionId) // must include "/" to be pzp
 				&& ownId.length > 1 && toId.length > 1
 				&& ownId[0] === toId[0] && ownId[1] === toId[1]) {
@@ -1559,7 +1559,7 @@ if (typeof _webinos === "undefined") {
                     , function (params) { errorCB(params); }
             );
         };
-        
+
         /**
          * Search for registered services.
          * @param {ServiceType} serviceType ServiceType object to search for.
@@ -1594,15 +1594,15 @@ if (typeof _webinos === "undefined") {
             if (typeof WebinosGeolocation !== 'undefined') typeMapCompatible['http://webinos.org/api/w3c/geolocation'] = WebinosGeolocation;
             if (typeof WebinosGeolocation !== 'undefined') typeMapCompatible['http://www.w3.org/ns/api-perms/geolocation'] = WebinosGeolocation; // old feature URI for compatibility
             if (typeof Contacts !== 'undefined') typeMapCompatible['http://www.w3.org/ns/api-perms/contacts'] = Contacts;
-            if (typeof ZoneNotificationModule !== 'undefined') typeMapCompatible['http://webinos.org/api/internal/zonenotification'] = ZoneNotificationModule;
+            if (typeof ZoneNotificationModule !== 'undefined') typeMapCompatible['http://webinos.org/api/zonenotifications'] = ZoneNotificationModule;
 //            if (typeof DiscoveryModule !== 'undefined') typeMapCompatible['http://webinos.org/manager/discovery/bluetooth'] = DiscoveryModule;
             if (typeof oAuthModule !== 'undefined') typeMapCompatible['http://webinos.org/mwc/oauth'] = oAuthModule;
             if (typeof PolicyManagementModule !== 'undefined') typeMapCompatible['http://webinos.org/core/policymanagement'] = PolicyManagementModule;
 
-            
+
             var rpc = rpcHandler.createRPC('ServiceDiscovery', 'findServices',
                     [serviceType, options, filter]);
-            
+
             var timer = setTimeout(function () {
                 rpcHandler.unregisterCallbackObject(rpc);
                 // If no results return TimeoutError.
@@ -1612,7 +1612,7 @@ if (typeof _webinos === "undefined") {
             }, options && typeof options.timeout !== 'undefined' ?
                         options.timeout : 120000 // default timeout 120 secs
             );
-            
+
             findOp = new PendingOperation(function() {
                 // remove waiting requests from callerCache
                 var index = callerCache.indexOf(rpc);
@@ -1624,7 +1624,7 @@ if (typeof _webinos === "undefined") {
                     callback.onError(new DOMError('AbortError', ''));
                 }
             }, timer);
-            
+
             var success = function (params) {
                 console.log("servicedisco: service found.");
                 var baseServiceObj = params;
@@ -1643,11 +1643,11 @@ if (typeof _webinos === "undefined") {
                 } else {
                     var serviceErrorMsg = 'Cannot instantiate webinos service.';
                     if (typeof callback.onError === 'function') {
-                        callback.onError(new DiscoveryError(102, serviceErrorMsg));
+                        callback.onError(new DOMError("onServiceAvailable", serviceErrorMsg));
                     }
                 }
             }; // End of function success
-            
+
             // The core of findService.
             rpc.onservicefound = function (params) {
                 // params is the parameters needed by the API method.
@@ -1661,32 +1661,39 @@ if (typeof _webinos === "undefined") {
                     callback.onError(new DOMError('SecurityError', ''));
                 }
             };
-            
+
+            rpc.onError = function (params) {
+                var serviceErrorMsg = 'Cannot find webinos service.';
+                if (typeof callback.onError === 'function') {
+                    callback.onError(new DOMError('onError', serviceErrorMsg));
+                }
+            };
+
             // Add this pending operation.
             rpcHandler.registerCallbackObject(rpc);
-            
+
             if (typeof rpcHandler.parent !== 'undefined') {
                 rpc.serviceAddress = rpcHandler.parent.config.pzhId;
             } else {
                 rpc.serviceAddress = webinos.session.getServiceLocation();
             }
-            
+
             if (!isOnNode() && !_webinosReady) {
                 callerCache.push(rpc);
             } else {
                 // Only do it when _webinosReady is true.
                 rpcHandler.executeRPC(rpc);
             }
-            
+
             return findOp;
         };  // End of findServices.
-        
+
         if (isOnNode()) {
             return;
         }
-        
+
         // further code only runs in the browser
-        
+
         webinos.session.addListener('registeredBrowser', function () {
             _webinosReady = true;
             for (var i = 0; i < callerCache.length; i++) {
@@ -1696,7 +1703,7 @@ if (typeof _webinos === "undefined") {
             callerCache = [];
         });
     };
-    
+
     /**
      * Export definitions for node.js
      */
@@ -1706,19 +1713,19 @@ if (typeof _webinos === "undefined") {
         // this adds ServiceDiscovery to the window object in the browser
         window.ServiceDiscovery = ServiceDiscovery;
     }
-    
+
     /**
      * Interface PendingOperation
      */
     function PendingOperation(cancelFunc, timer) {
         this.found = false;
-        
+
         this.cancel = function () {
             clearTimeout(timer);
             cancelFunc();
         };
     }
-    
+
     function DOMError(name, message) {
         return {
             name: name,
@@ -1801,6 +1808,155 @@ if (typeof _webinos === "undefined") {
     webinos.configuration = new ServiceConfiguration (webinos.rpcHandler);
 }());
 /*******************************************************************************
+*  Code contributed to the webinos project
+* 
+* Licensed under the Apache License, Version 2.0 (the "License");
+* you may not use this file except in compliance with the License.
+* You may obtain a copy of the License at
+*  
+*     http://www.apache.org/licenses/LICENSE-2.0
+*  
+* Unless required by applicable law or agreed to in writing, software
+* distributed under the License is distributed on an "AS IS" BASIS,
+* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+* See the License for the specific language governing permissions and
+* limitations under the License.
+* 
+* Copyright 2013 Toby Ealden
+******************************************************************************/
+(function() {
+
+	/**
+	 * Webinos Get42 service constructor (client side).
+	 * @constructor
+	 * @param obj Object containing displayName, api, etc.
+	 */
+	ZoneNotificationsModule = function(obj) {
+		WebinosService.call(this, obj);
+		
+		this._testAttr = "HelloWorld";
+		this.__defineGetter__("testAttr", function (){
+			return this._testAttr + " Success";
+		});
+	};
+	_webinos.registerServiceConstructor("http://webinos.org/api/zonenotifications", ZoneNotificationsModule);
+	
+	/**
+	 * To bind the service.
+	 * @param bindCB BindCallback object.
+	 */
+	ZoneNotificationsModule.prototype.bindService = function (bindCB, serviceId) {
+		// actually there should be an auth check here or whatever, but we just always bind
+		this.getNotifications = getNotifications;
+    this.getNotification = getNotification;
+    this.addNotification = addNotification;
+    this.deleteNotification = deleteNotification;
+    this.notificationResponse = notificationResponse;
+		this.listenAttr = {};
+		this.listenerFor42 = listenerFor42.bind(this);
+		
+		if (typeof bindCB.onBind === 'function') {
+			bindCB.onBind(this);
+		};
+	}
+	
+	/**
+	 * Get 42.
+	 * An example function which does a remote procedure call to retrieve a number.
+	 * @param attr Some attribute.
+	 * @param successCB Success callback.
+	 * @param errorCB Error callback. 
+	 */
+	function getNotifications(attr, successCB, errorCB) {
+		var rpc = webinos.rpcHandler.createRPC(this, "getNotifications", [attr]);
+		webinos.rpcHandler.executeRPC(rpc,
+				function (params){
+					successCB(params);
+				},
+				function (error){
+					errorCB(error);
+				}
+		);
+	}
+
+  function notificationResponse(responseTo, response, successCB, errorCB) {
+    var rpc = webinos.rpcHandler.createRPC(this, "notificationResponse", [responseTo, response]);
+    webinos.rpcHandler.executeRPC(rpc,
+      function (params){
+        successCB(params);
+      },
+      function (error){
+        errorCB(error);
+      }
+    );
+  }
+
+  function getNotification(id, successCB, errorCB) {
+    var rpc = webinos.rpcHandler.createRPC(this, "getNotification", [id]);
+    webinos.rpcHandler.executeRPC(rpc,
+      function (params){
+        successCB(params);
+      },
+      function (error){
+        errorCB(error);
+      }
+    );
+  }
+
+  function addNotification(type,data,successCB,errorCB) {
+    var rpc = webinos.rpcHandler.createRPC(this, "addNotification", [type, data]);
+    webinos.rpcHandler.executeRPC(rpc,
+      function (params){
+        if (typeof successCB === "function") {
+          successCB(params);
+        }
+      },
+      function (error){
+        if (typeof errorCB === "function") {
+          errorCB(error);
+        }
+      }
+    );
+  }
+
+  function deleteNotification(id,successCB,errorCB) {
+    var rpc = webinos.rpcHandler.createRPC(this, "deleteNotification", [id]);
+    webinos.rpcHandler.executeRPC(rpc,
+      function (params){
+        if (typeof successCB === "function") {
+          successCB(params);
+        }
+      },
+      function (error){
+        if (typeof errorCB === "function") {
+          errorCB(error);
+        }
+      }
+    );
+  }
+
+	/**
+	 * Listen for 42.
+	 * An exmaple function to register a listener which is then called more than
+	 * once via RPC from the server side.
+	 * @param listener Listener function that gets called.
+	 * @param options Optional options.
+	 */
+	function listenerFor42(listener, options) {
+		var rpc = webinos.rpcHandler.createRPC(this, "listenAttr.listenFor42", [options]);
+
+		// add one listener, could add more later
+		rpc.onEvent = function(obj) {
+			// we were called back, now invoke the given listener
+			listener(obj);
+			webinos.rpcHandler.unregisterCallbackObject(rpc);
+		};
+
+		webinos.rpcHandler.registerCallbackObject(rpc);
+		webinos.rpcHandler.executeRPC(rpc);
+	}
+	
+}());/*******************************************************************************
  *  Code contributed to the webinos project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -3456,303 +3612,6 @@ if (typeof webinos.file === "undefined") webinos.file = {};
   // };
 })(webinos.file);
 /*******************************************************************************
- *    Code contributed to the webinos project
- * 
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *    
- *         http://www.apache.org/licenses/LICENSE-2.0
- *    
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- * 
- * Copyright 2013 Istituto Superiore Mario Boella (ISMB)
- ******************************************************************************/
-
-(function()
-{
-    Media = function(obj) {
-        WebinosService.call(this, obj);
-    };
-    
-    _webinos.registerServiceConstructor("http://webinos.org/api/media", Media);
-
-    Media.prototype.bindService = function (bindCB, serviceId) {
-	    if (typeof bindCB.onBind === 'function') {
-		    bindCB.onBind(this);
-	    };
-    }
-    var rpcCB = {};
-
-	Media.prototype.registerListeners = function(callbacks, successCB, errorCB)
-	{
-        //should be checked if a rpcCB has been already created. So, it should be prevented an application to register multiple listeners.
-        
-        rpcCB = webinos.rpcHandler.createRPC(this, "registerListeners");
-        
-        rpcCB.onStop = rpcCB.onEnd = rpcCB.onPlay = rpcCB.onPause = rpcCB.onVolumeUP = rpcCB.onVolumeDOWN = rpcCB.onVolumeSet = function(){};
-
-        if(typeof callbacks.onStop === "function") 
-            rpcCB.onStop = callbacks.onStop;
-        
-        if(typeof callbacks.onEnd === "function") 
-            rpcCB.onEnd = callbacks.onEnd;
-        
-        if(typeof callbacks.onPlay === "function") 
-            rpcCB.onPlay = callbacks.onPlay;
-        
-        if(typeof callbacks.onPause === "function") 
-            rpcCB.onPause = callbacks.onPause;
-
-        if(typeof callbacks.onVolumeUP === "function") 
-            rpcCB.onVolumeUP = callbacks.onVolumeUP;
-
-        if(typeof callbacks.onVolumeDOWN === "function") 
-            rpcCB.onVolumeDOWN = callbacks.onVolumeDOWN;
-        
-        if(typeof callbacks.onVolumeSet === "function") 
-            rpcCB.onVolumeSet = callbacks.onVolumeSet;
-
-        webinos.rpcHandler.registerCallbackObject(rpcCB);             
-
-        webinos.rpcHandler.executeRPC(rpcCB, function(params)
-        {
-            if (typeof(successCB) === 'function') successCB(params);
-        }, function(error) 
-        {
-            //unregister listener if fails to add it
-            webinos.rpcHandler.unregisterCallbackObject(rpcCB);
-            rpcCB = undefined;
-            
-            if (typeof(errorCB) !== 'undefined') errorCB(error);
-        });
-	}
-	
-	Media.prototype.unregisterListenersOnLeave = function(successCB, errorCB)
-    {
-        var rpc = webinos.rpcHandler.createRPC(this, "unregisterListenersOnLeave");        
-        webinos.rpcHandler.unregisterCallbackObject(rpcCB);
-        
-        webinos.rpcHandler.executeRPC(rpc, function(params)
-        {
-            if (typeof(successCB) === 'function') successCB(params);
-        }, function(error) 
-            {
-                if (typeof(errorCB) !== 'undefined') errorCB(error);
-        });
-        rpcCB = undefined;
-    }
-        
-    Media.prototype.unregisterListenersOnExit = function()
-    {
-        var rpc = webinos.rpcHandler.createRPC(this, "unregisterListenersOnExit");         
-        webinos.rpcHandler.unregisterCallbackObject(rpcCB);
-
-        webinos.rpcHandler.executeRPC(rpc);
-        rpcCB = undefined;
-    }
-    
-    Media.prototype.isPlaying = function(successCB, errorCB)
-    {
-        var rpc = webinos.rpcHandler.createRPC(this, "isPlaying");
-        webinos.rpcHandler.executeRPC(rpc, function(params)
-        {
-            if (typeof(successCB) === 'function') successCB(params);
-        }, function(error)
-        {
-            if (typeof(errorCB) !== 'undefined')
-                errorCB(error);
-        })
-    }
-    
-    Media.prototype.play = function(path, successCB, errorCB)
-    {
-        var rpc = webinos.rpcHandler.createRPC(this, "startPlay", [ path ]);
-        webinos.rpcHandler.executeRPC(rpc, function(params)
-        {
-            if (typeof(successCB) === 'function')successCB(params);
-        }, function(error)
-        {
-            if (typeof(errorCB) !== 'undefined')
-            errorCB(error);
-        })
-    }
-    
-    Media.prototype.playPause = function(successCB, errorCB)
-    {
-       var rpc = webinos.rpcHandler.createRPC(this, "playPause");
-        webinos.rpcHandler.executeRPC(rpc, function(params)
-        {
-            if (typeof(successCB) === 'function')successCB(params);
-        }, function(error)
-        {
-            if (typeof(errorCB) !== 'undefined')
-            errorCB(error);
-        })
-    }
-    
-    Media.prototype.stepforward = function(successCB, errorCB)
-    {
-       var rpc = webinos.rpcHandler.createRPC(this, "stepforward"); 
-        webinos.rpcHandler.executeRPC(rpc, function(params)
-        {
-            if (typeof(successCB) === 'function')successCB(params);
-        }, function(error)
-        {
-            if (typeof(errorCB) !== 'undefined')
-            errorCB(error);
-        })
-    }
-    
-    Media.prototype.bigStepforward = function(successCB, errorCB)
-    {
-       var rpc = webinos.rpcHandler.createRPC(this, "bigStepforward");
-        webinos.rpcHandler.executeRPC(rpc, function(params)
-        {
-            if (typeof(successCB) === 'function')successCB(params);
-        }, function(error)
-        {
-            if (typeof(errorCB) !== 'undefined')
-            errorCB(error);
-        })
-    }
-    
-    Media.prototype.stepback = function(successCB, errorCB)
-    {
-       var rpc = webinos.rpcHandler.createRPC(this, "stepback");
-        webinos.rpcHandler.executeRPC(rpc, function(params)
-        {
-            if (typeof(successCB) === 'function')successCB(params);
-        }, function(error)
-        {
-            if (typeof(errorCB) !== 'undefined')
-            errorCB(error);
-        })
-    }
-    
-    Media.prototype.bigStepback = function(successCB, errorCB)
-    {
-       var rpc = webinos.rpcHandler.createRPC(this, "bigStepback");
-        webinos.rpcHandler.executeRPC(rpc, function(params)
-        {
-            if (typeof(successCB) === 'function')successCB(params);
-        }, function(error)
-        {
-            if (typeof(errorCB) !== 'undefined')
-            errorCB(error);
-        })
-    }
-    
-    Media.prototype.stop = function(successCB, errorCB)
-    {
-       var rpc = webinos.rpcHandler.createRPC(this, "stop");
-        webinos.rpcHandler.executeRPC(rpc, function(params)
-        {
-            if (typeof(successCB) === 'function')successCB(params);
-        }, function(error)
-        {
-            if (typeof(errorCB) !== 'undefined')
-            errorCB(error);
-        })
-    }
-    
-    Media.prototype.volumeUP = function(successCB, errorCB)
-    {
-       var rpc = webinos.rpcHandler.createRPC(this, "volumeUP");
-        webinos.rpcHandler.executeRPC(rpc, function(params)
-        {
-            if (typeof(successCB) === 'function')successCB(params);
-        }, function(error)
-        {
-            if (typeof(errorCB) !== 'undefined')
-            errorCB(error);
-        })
-    }
-    
-    Media.prototype.volumeDOWN = function(successCB, errorCB)
-    {
-       var rpc = webinos.rpcHandler.createRPC(this, "volumeDOWN");
-        webinos.rpcHandler.executeRPC(rpc, function(params)
-        {
-            if (typeof(successCB) === 'function')successCB(params);
-        }, function(error)
-        {
-            if (typeof(errorCB) !== 'undefined')
-            errorCB(error);
-        })
-    }
-    
-    Media.prototype.setVolume = function(params, successCB, errorCB)
-    {
-        var rpc = webinos.rpcHandler.createRPC(this, "setVolume", [ params ]);
-        webinos.rpcHandler.executeRPC(rpc, function(params)
-        {
-            if (typeof(successCB) === 'function')successCB(params);
-        }, function(error)
-        {
-            if (typeof(errorCB) !== 'undefined')
-                errorCB(error);
-        })
-    }
-    
-    Media.prototype.increasePlaybackSpeed = function(successCB, errorCB)
-    {
-       var rpc = webinos.rpcHandler.createRPC(this, "increasePlaybackSpeed");
-        webinos.rpcHandler.executeRPC(rpc, function(params)
-        {
-            if (typeof(successCB) === 'function')successCB(params);
-        }, function(error)
-        {
-            if (typeof(errorCB) !== 'undefined')
-            errorCB(error);
-        })
-    }
-    
-    Media.prototype.decreasePlaybackSpeed = function(successCB, errorCB)
-    {
-       var rpc = webinos.rpcHandler.createRPC(this, "decreasePlaybackSpeed");
-        webinos.rpcHandler.executeRPC(rpc, function(params)
-        {
-            if (typeof(successCB) === 'function')successCB(params);
-        }, function(error)
-        {
-            if (typeof(errorCB) !== 'undefined')
-            errorCB(error);
-        })
-    }
-    
-    Media.prototype.showInfo = function(successCB, errorCB)
-    {
-       var rpc = webinos.rpcHandler.createRPC(this, "showInfo");
-        webinos.rpcHandler.executeRPC(rpc, function(params)
-        {
-            if (typeof(successCB) === 'function')successCB(params);
-        }, function(error)
-        {
-            if (typeof(errorCB) !== 'undefined')
-            errorCB(error);
-        })
-    }
-    
-    Media.prototype.toggleSubtitle = function(successCB, errorCB)
-    {
-       var rpc = webinos.rpcHandler.createRPC(this, "toggleSubtitle");
-        webinos.rpcHandler.executeRPC(rpc, function(params)
-        {
-            if (typeof(successCB) === 'function')successCB(params);
-        }, function(error)
-        {
-            if (typeof(errorCB) !== 'undefined')
-            errorCB(error);
-        })
-    }
-    
-}());
-/*******************************************************************************
  *  Code contributed to the webinos project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -3877,6 +3736,213 @@ if (typeof webinos.file === "undefined") webinos.file = {};
 
     WebinosService.prototype.bindService.call(this, bindCB);
   };
+}());
+/*******************************************************************************
+ *    Code contributed to the webinos project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *         http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * Copyright 2013 Istituto Superiore Mario Boella (ISMB)
+ ******************************************************************************/
+
+(function()
+{
+    Media = function(obj) {
+        WebinosService.call(this, obj);
+    };
+
+    _webinos.registerServiceConstructor("http://webinos.org/api/mediaplay", Media);
+
+    Media.prototype.bindService = function (bindCB, serviceId) {
+	    if (typeof bindCB.onBind === 'function') {
+		    bindCB.onBind(this);
+	    };
+
+        var rpc = webinos.rpcHandler.createRPC(this, "bindService");
+        webinos.rpcHandler.executeRPC(rpc);
+    }
+    var rpcCB = {};
+
+    Media.prototype.addListener = function(listeners, successCB, errorCB)
+	{
+        //should be checked if a rpcCB has been already created. So, it should be prevented an application to register multiple listeners.
+
+        rpcCB = webinos.rpcHandler.createRPC(this, "addListener");
+
+        rpcCB.onStop = rpcCB.onEnd = rpcCB.onPlay = rpcCB.onPause = rpcCB.onVolumeUP = rpcCB.onVolumeDOWN = rpcCB.onVolumeSet = function(){};
+
+        if(typeof listeners.onStop === "function")
+            rpcCB.onStop = listeners.onStop;
+
+        if(typeof listeners.onEnd === "function")
+            rpcCB.onEnd = listeners.onEnd;
+
+        if(typeof listeners.onPlay === "function")
+            rpcCB.onPlay = listeners.onPlay;
+
+        if(typeof listeners.onPause === "function")
+            rpcCB.onPause = listeners.onPause;
+
+        if(typeof listeners.onVolume === "function")
+            rpcCB.onVolume = listeners.onVolume;
+
+        webinos.rpcHandler.registerCallbackObject(rpcCB);
+
+        webinos.rpcHandler.executeRPC(rpcCB, function(params)
+        {
+            if (typeof(successCB) === 'function') successCB(params);
+        }, function(error)
+        {
+            //unregister listener if fails to add it
+            webinos.rpcHandler.unregisterCallbackObject(rpcCB);
+            rpcCB = undefined;
+
+            if (typeof(errorCB) !== 'undefined') errorCB(error);
+        });
+	}
+	
+	Media.prototype.removeAllListeners = function(successCB, errorCB)
+    {
+        var rpc = webinos.rpcHandler.createRPC(this, "removeAllListeners");
+        webinos.rpcHandler.unregisterCallbackObject(rpcCB);
+
+        webinos.rpcHandler.executeRPC(rpc, function(params)
+            {
+                if (typeof(successCB) === 'function') successCB(params);
+            }, function(error)
+            {
+                    if (typeof(errorCB) !== 'undefined') errorCB(error);
+            });
+        rpcCB = undefined;
+    }
+
+    Media.prototype.isPlaying = function(successCB, errorCB)
+    {
+        var rpc = webinos.rpcHandler.createRPC(this, "isPlaying");
+        webinos.rpcHandler.executeRPC(rpc, function(params)
+        {
+            if (typeof(successCB) === 'function') successCB(params);
+        }, function(error)
+        {
+            if (typeof(errorCB) !== 'undefined')
+                errorCB(error);
+        })
+    }
+
+    Media.prototype.play = function(URI, successCB, errorCB)
+    {
+        var rpc = webinos.rpcHandler.createRPC(this, "startPlay", [ URI ]);
+        webinos.rpcHandler.executeRPC(rpc, function(params)
+        {
+            if (typeof(successCB) === 'function')successCB(params);
+        }, function(error)
+        {
+            if (typeof(errorCB) !== 'undefined')
+            errorCB(error);
+        })
+    }
+
+    Media.prototype.playPause = function(successCB, errorCB)
+    {
+       var rpc = webinos.rpcHandler.createRPC(this, "playPause");
+        webinos.rpcHandler.executeRPC(rpc, function(params)
+        {
+            if (typeof(successCB) === 'function')successCB(params);
+        }, function(error)
+        {
+            if (typeof(errorCB) !== 'undefined')
+            errorCB(error);
+        })
+    }
+
+    Media.prototype.seek = function(step, successCB, errorCB)
+    {
+        var rpc = webinos.rpcHandler.createRPC(this, "seek", [ step ]);
+        webinos.rpcHandler.executeRPC(rpc, function(params)
+        {
+            if (typeof(successCB) === 'function')successCB(params);
+        }, function(error)
+        {
+            if (typeof(errorCB) !== 'undefined')
+                errorCB(error);
+        })
+    }
+
+    Media.prototype.stop = function(successCB, errorCB)
+    {
+       var rpc = webinos.rpcHandler.createRPC(this, "stop");
+        webinos.rpcHandler.executeRPC(rpc, function(params)
+        {
+            if (typeof(successCB) === 'function')successCB(params);
+        }, function(error)
+        {
+            if (typeof(errorCB) !== 'undefined')
+            errorCB(error);
+        })
+    }
+
+    Media.prototype.setVolume = function(volume, successCB, errorCB)
+    {
+        var rpc = webinos.rpcHandler.createRPC(this, "setVolume", [ volume ]);
+        webinos.rpcHandler.executeRPC(rpc, function(params)
+        {
+            if (typeof(successCB) === 'function')successCB(params);
+        }, function(error)
+        {
+            if (typeof(errorCB) !== 'undefined')
+                errorCB(error);
+        })
+    }
+
+    Media.prototype.setSpeed = function(speed, successCB, errorCB)
+    {
+       var rpc = webinos.rpcHandler.createRPC(this, "setSpeed", [speed]);
+        webinos.rpcHandler.executeRPC(rpc, function(params)
+        {
+            if (typeof(successCB) === 'function')successCB(params);
+        }, function(error)
+        {
+            if (typeof(errorCB) !== 'undefined')
+            errorCB(error);
+        })
+    }
+
+    Media.prototype.showInfo = function(successCB, errorCB)
+    {
+       var rpc = webinos.rpcHandler.createRPC(this, "showInfo");
+        webinos.rpcHandler.executeRPC(rpc, function(params)
+        {
+            if (typeof(successCB) === 'function')successCB(params);
+        }, function(error)
+        {
+            if (typeof(errorCB) !== 'undefined')
+            errorCB(error);
+        })
+    }
+
+    Media.prototype.toggleSubtitle = function(successCB, errorCB)
+    {
+       var rpc = webinos.rpcHandler.createRPC(this, "toggleSubtitle");
+        webinos.rpcHandler.executeRPC(rpc, function(params)
+        {
+            if (typeof(successCB) === 'function')successCB(params);
+        }, function(error)
+        {
+            if (typeof(errorCB) !== 'undefined')
+            errorCB(error);
+        })
+    }
+
 }());
 /*******************************************************************************
 *  Code contributed to the webinos project

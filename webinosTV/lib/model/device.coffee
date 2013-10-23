@@ -9,7 +9,7 @@ MessagingService = require('../service/messaging.coffee')
 PeerService = require('./peer.coffee')
 MediaContentService = require('../service/mediacontent.coffee')
 TelevisionService = require('../service/television.coffee')
-MediaService = require('../service/media.coffee')
+MediaPlayService = require('../service/mediaplay.coffee')
 PaymentService = require('../service/payment.coffee')
 
 class DeviceManager extends Bacon.EventStream
@@ -55,7 +55,7 @@ class DeviceManager extends Bacon.EventStream
         MessagingService.findServices(),
         MediaContentService.findServices(),
         TelevisionService.findServices(),
-        MediaService.findServices(),
+        MediaPlayService.findServices(),
         PaymentService.findServices())
     services
       .flatMap (service) ->
@@ -154,9 +154,9 @@ class Device extends Bacon.EventStream
     @devicestatus = -> _.find(services, ({ref}) -> ref instanceof DeviceStatusService)?.ref
     @mediacontent = -> _.chain(services).filter(({ref}) -> ref instanceof MediaContentService).pluck('ref').value()
     @television = -> _.find(services, ({ref}) -> ref instanceof TelevisionService)?.ref
-    @media = -> _.chain(services).filter(({ref}) -> ref instanceof MediaService).pluck('ref').value()
-    @upnp = => _.filter(@media(), (ref) -> ref.description().toLowerCase().indexOf('upnp') isnt -1)
-    @noupnp = => _.filter(@media(), (ref) -> ref.description().toLowerCase().indexOf('upnp') is -1)
+    @mediaplay = -> _.chain(services).filter(({ref}) -> ref instanceof MediaPlayService).pluck('ref').value()
+    @upnp = => _.filter(@mediaplay(), (ref) -> ref.description().toLowerCase().indexOf('upnp') isnt -1)
+    @noupnp = => _.filter(@mediaplay(), (ref) -> ref.description().toLowerCase().indexOf('upnp') is -1)
     @payment = -> _.find(services, ({ref}) -> ref instanceof PaymentService)?.ref
     @peers = -> _.chain(services).filter(({ref}) -> ref instanceof PeerService).pluck('ref').value()
     @isSource = => @mediacontent().length or @television()?
