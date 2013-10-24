@@ -142,7 +142,7 @@ function ContentListView(viewModel) {
     };
     var html;
     if (typeof item.type === 'string' && item.type.toLowerCase().indexOf('image') === 0) {
-      html = '<li class="imageContent nav_co"><div class="thumbnail" style="background-image:url(' + item.thumbnailURIs[0] + ')">' + addSelectIcon() + '</div></li>';
+      html = '<li class="imageContent nav_co"><div class="thumbnail" style="background-image:url(\'' + item.thumbnailURIs[0] + '\')">' + addSelectIcon() + '</div></li>';
     } else {
       html = '<li class="textContent nav_co"><div><p>' + payment.name(item.title) + (payment.encrypted(item.title) ? ' (' + payment.price(item.title) + '€)' : '') + '</p>' + addSelectIcon() + '</div></li>';
     }
