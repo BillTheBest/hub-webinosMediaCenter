@@ -97,7 +97,8 @@ class Channel extends Bacon.EventStream
     @send = (message) ->
       return Promise.reject("Channel not connected") unless connected
       promise = promisify('send', underlying)(message)
-      promise.then -> messages.push({contents: message})
+      # promise.then -> messages.push({contents: message})
+      messages.push({contents: message}) # Yaah, u know, that android..
       promise
     @sendTo = (client, message) ->
       return Promise.reject("Channel not connected") unless connected
