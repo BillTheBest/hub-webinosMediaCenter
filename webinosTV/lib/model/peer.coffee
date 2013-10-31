@@ -171,10 +171,15 @@ class LocalPeerService extends PeerService
             index = 0; next(no)
         when 'queue:remove'
           queue = _.clone(queue)
+          reset = no
           for i in _.sortBy(content.items, _.identity).reverse()
             queue.splice(i, 1)
-          if index in content.items
-            index = 0; next(no)
+            if i < index
+              index--
+            else if i is index
+              index = 0
+              reset = yes
+          next(no) if reset
         when 'state:overwrite'
           if playback.current
             playback.stopping = yes
