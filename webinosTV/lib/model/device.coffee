@@ -28,6 +28,7 @@ class DeviceManager extends Bacon.EventStream
                 namespace: 'urn:webinos:hub:media'
                 properties:
                   mode: 'send-receive'
+                  canDetach: yes
                   reclaimIfExists: yes
                 null # requestCallback
               ).then(_.identity, -> Promise.reject(service)))
