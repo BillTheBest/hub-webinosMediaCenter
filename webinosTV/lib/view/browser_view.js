@@ -67,7 +67,7 @@ function ListView(items, selection, list, wrapper, fadeout) {
 
 
 
-  selection.apply($(list).asEventStream('click').merge($(list).asEventStream('touchend')).filter(function(e){
+  selection.apply($(list).asEventStream('click').merge($(list).asEventStream('touchend')).debounceImmediate(500).filter(function(e){
     if(!e.screenY||!clickStartEvent) return true;
     var justClick = (Date.now()-tappedOn<250);
     var movedDelta = Math.max(e.screenY, clickStartEvent.screenY)-Math.min(e.screenY, clickStartEvent.screenY)+Math.max(e.screenX, clickStartEvent.screenX)-Math.min(e.screenX, clickStartEvent.screenX);
@@ -305,8 +305,8 @@ function BrowserView(viewModel) {
 
   viewModel.search().bind(bjq.textFieldValue($('#searchfield')));
 
-  viewModel.prepend().plug($('#prepend').asEventStream('click').merge($('#prepend').asEventStream('touchend')));
-  viewModel.append().plug($('#append').asEventStream('click').merge($('#append').asEventStream('touchend')));
+  viewModel.prepend().plug($('#prepend').asEventStream('click').merge($('#prepend').asEventStream('touchend')).debounceImmediate(500));
+  viewModel.append().plug($('#append').asEventStream('click').merge($('#append').asEventStream('touchend')).debounceImmediate(500));
 
   viewModel.selectedPeer().onValue(function (selectedPeer) {
     $('#peer').text(selectedPeer === '<no-peer>' ? "Select a target" : friendlyName(selectedPeer));

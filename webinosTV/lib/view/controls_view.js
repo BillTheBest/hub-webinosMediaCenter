@@ -40,13 +40,13 @@ function ControlsView(parent, config, viewModel) {
   if (config.highdef) container.append(chres);
   controls.append([container, csbar, ctime]);
 
-  viewModel.pay().plug(cpaym.asEventStream('click').merge(cpaym.asEventStream('touched')));
-  viewModel.playOrPause().plug(cplay.asEventStream('click').merge(cplay.asEventStream('touchend')));
-  viewModel.previous().plug(cprev.asEventStream('click').merge(cprev.asEventStream('touchend')));
-  viewModel.next().plug(cnext.asEventStream('click').merge(cnext.asEventStream('touchend')));
-  viewModel.rewind().plug(crewd.asEventStream('click').merge(crewd.asEventStream('touchend')).map(undefined));
-  viewModel.forward().plug(cfwrd.asEventStream('click').merge(cfwrd.asEventStream('touchend')).map(undefined));
-  viewModel.remove().plug(cdele.asEventStream('click').merge(cdele.asEventStream('touchend')));
+  viewModel.pay().plug(cpaym.asEventStream('click').merge(cpaym.asEventStream('touchend')).debounceImmediate(500));
+  viewModel.playOrPause().plug(cplay.asEventStream('click').merge(cplay.asEventStream('touchend')).debounceImmediate(500));
+  viewModel.previous().plug(cprev.asEventStream('click').merge(cprev.asEventStream('touchend')).debounceImmediate(500));
+  viewModel.next().plug(cnext.asEventStream('click').merge(cnext.asEventStream('touchend')).debounceImmediate(500));
+  viewModel.rewind().plug(crewd.asEventStream('click').merge(crewd.asEventStream('touchend')).debounceImmediate(500).map(undefined));
+  viewModel.forward().plug(cfwrd.asEventStream('click').merge(cfwrd.asEventStream('touchend')).debounceImmediate(500).map(undefined));
+  viewModel.remove().plug(cdele.asEventStream('click').merge(cdele.asEventStream('touchend')).debounceImmediate(500));
 
   $(parent).append(controls);
   calcControlButtonWidth();
