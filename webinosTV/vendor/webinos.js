@@ -74,6 +74,7 @@
 		if (this.parent && this.parent.registerServicesWithPzh) {
 			this.parent.registerServicesWithPzh();
 		}
+		return callback.id;
 	};
 
 	/**
@@ -129,7 +130,7 @@
 		});
 
 		if (filteredRO.length < 1) {
-			if (/ServiceDiscovery|Dashboard/.test(serviceTyp)) {
+			if (/ServiceDiscovery|ServiceConfiguration|Dashboard/.test(serviceTyp)) {
 				return receiverObjs[0];
 			}
 			return undefined;
@@ -347,7 +348,7 @@
 			} else {
 				serviceId = serviceIdRest;
 			}
-		} else if (!/ServiceDiscovery|Dashboard/.test(service)) {
+		} else if (!/ServiceDiscovery|ServiceConfiguration|Dashboard/.test(service)) {
 			// request to object registered with registerCallbackObject
 			isCallbackObject = true;
 		}
@@ -358,7 +359,7 @@
 			return;
 		}
 
-		logger.log("Got request to invoke " + method + " on " + service + (serviceId ? "@" + serviceId : "") +" with params: " + request.params );
+		logger.log("Got request to invoke " + method + " on " + service + (serviceId ? "@" + serviceId : "") +" with params: " + JSON.stringify(request.params) );
 
 		var includingObject;
 		if (isCallbackObject) {
@@ -429,17 +430,16 @@
 
 			if (waitResp.onResult && typeof response.result !== "undefined") {
 				waitResp.onResult(response.result);
-				logger.log("RPC called scb for response");
+				logger.log("RPC called success callback for response");
 			}
-
-			if (waitResp.onError && response.error) {
-				if (response.error.data) {
-					this.awaitingResponse[response.id].onError(response.error.data);
+			else if (waitResp.onError && typeof response.error !== "undefined") {
+				if (response.error) {
+					this.awaitingResponse[response.id].onError(response.error);
 				}
 				else {
 					this.awaitingResponse[response.id].onError();
 				}
-				logger.log("RPC called ecb for response");
+				logger.log("RPC called error callback for response");
 			}
 				delete this.awaitingResponse[response.id];
 
@@ -452,8 +452,9 @@
 
 				callbackObj.onSecurityError(response.error.data);
 				logger.log('Received SecurityError response.');
+			} else {
+				logger.log('Dropping received response for RPC callback obj.');
 			}
-			logger.log('Dropping received response for RPC callback obj.');
 		}
 	};
 
@@ -903,7 +904,7 @@
 	function isLocalAppMsg(msg) {
 		var ownId = this.ownSessionId.split(this.separator);
 		var toId  = msg.to.split(this.separator);
-        if (/\/[BI]ID[a-f0-9]+:\d+/.exec(msg.to) // must include /$hexstr:$num to be wrt
+        if (/\/(?:[BI]ID)?[a-f0-9]+:\d+/.exec(msg.to) // check it has WRT app id
 				&& /\//.exec(this.ownSessionId) // must include "/" to be pzp
 				&& ownId.length > 1 && toId.length > 1
 				&& ownId[0] === toId[0] && ownId[1] === toId[1]) {
@@ -1255,7 +1256,7 @@ if (typeof _webinos === "undefined") {
        var list =[];
        if(pzhId) {
          for (var i = 0 ; i < connectedDevices.length; i = i + 1){
-           list.push(connectedDevices[i].id);
+             list.push(connectedDevices[i].id);
          }
        }
        return list;
@@ -1265,10 +1266,10 @@ if (typeof _webinos === "undefined") {
         if (connectedDevices){
            for (var i = 0 ; i < connectedDevices.length; i = i + 1){
             if(!pzhId) {
-              list.push(connectedDevices[i]);
+                  list.push(connectedDevices[i]);
             } else {
               for (var j = 0; j < (connectedDevices[i].pzp && connectedDevices[i].pzp.length); j = j + 1){
-               list.push(connectedDevices[i].pzp[j]);
+                  list.push(connectedDevices[i].pzp[j]);
               }
            }
           }
@@ -1547,13 +1548,13 @@ if (typeof _webinos === "undefined") {
 
         /**
          * Search for installed APIs.
-         * @param APINameFilter String to filter API names.
+         * @param apiNameFilter String to filter API names.
          * @param successCB Callback to call with results.
          * @param errorCB Callback to call in case of error.
          */
-        this.findConfigurableAPIs = function(APINameFilter, successCB, errorCB) {
+        this.findConfigurableAPIs = function(apiNameFilter, successCB, errorCB) {
             //Calls to this method can be constrained using dashboard's feature
-            var rpc = rpcHandler.createRPC('ServiceDiscovery', 'findConfigurableAPIs', [{'api':'http://webinos.org/api/dashboard'}, APINameFilter]);
+            var rpc = rpcHandler.createRPC('ServiceDiscovery', 'findConfigurableAPIs', [{'api':'http://webinos.org/api/dashboard'}, apiNameFilter]);
             rpcHandler.executeRPC(rpc
                     , function (params) { successCB(params); }
                     , function (params) { errorCB(params); }
@@ -1622,6 +1623,8 @@ if (typeof _webinos === "undefined") {
                 rpcHandler.unregisterCallbackObject(rpc);
                 if (typeof callback.onError === 'function') {
                     callback.onError(new DOMError('AbortError', ''));
+                    clearTimeout(timer);
+                    timer = null;
                 }
             }, timer);
 
@@ -1659,6 +1662,7 @@ if (typeof _webinos === "undefined") {
                 clearTimeout(timer);
                 if (typeof callback.onError === 'function') {
                     callback.onError(new DOMError('SecurityError', ''));
+                    clearTimeout(timer);
                 }
             };
 
@@ -1666,6 +1670,7 @@ if (typeof _webinos === "undefined") {
                 var serviceErrorMsg = 'Cannot find webinos service.';
                 if (typeof callback.onError === 'function') {
                     callback.onError(new DOMError('onError', serviceErrorMsg));
+                    clearTimeout(timer);
                 }
             };
 
@@ -1769,6 +1774,21 @@ if (typeof _webinos === "undefined") {
          * @param successCB Callback to call with results.
          * @param errorCB Callback to call in case of error.
          */
+        this.getAPIServicesConfiguration = function(apiName, successCB, errorCB) {
+            //Calls to this method can be constrained using dashboard's feature
+            var rpc = rpcHandler.createRPC('ServiceConfiguration', 'getAPIServicesConfiguration', [{'api':'http://webinos.org/api/dashboard'}, apiName]);
+            rpcHandler.executeRPC(rpc
+                    , function (params) { successCB(params); }
+                    , function (params) { errorCB(params); }
+            );
+        };
+ 
+        /**
+         * Get current configuration for a specified API.
+         * @param apiName Name of source API.
+         * @param successCB Callback to call with results.
+         * @param errorCB Callback to call in case of error.
+         */
         this.getServiceConfiguration = function(apiName, successCB, errorCB) {
             //Calls to this method can be constrained using dashboard's feature
             var rpc = rpcHandler.createRPC('ServiceConfiguration', 'getServiceConfiguration', [{'api':'http://webinos.org/api/dashboard'}, apiName]);
@@ -1777,17 +1797,34 @@ if (typeof _webinos === "undefined") {
                     , function (params) { errorCB(params); }
             );
         };
-        
+      
         /**
          * Set configuration to a specified API.
-         * @param apiName Name of target API.
+         * @param apiURI URI of target API.
          * @param config Configuration to apply. It updates the params field in the config.json file
          * @param successCB Callback to call with results.
          * @param errorCB Callback to call in case of error.
          */
-        this.setServiceConfiguration = function(apiName, config, successCB, errorCB) {
+        this.setAPIServicesConfiguration = function(apiURI, config, successCB, errorCB) {
             //Calls to this method can be constrained using dashboard's feature
-            var rpc = rpcHandler.createRPC('ServiceConfiguration', 'setServiceConfiguration', [{'api':'http://webinos.org/api/dashboard'}, apiName, config]);
+            var rpc = rpcHandler.createRPC('ServiceConfiguration', 'setAPIServicesConfiguration', [{'api':'http://webinos.org/api/dashboard'}, apiURI, config]);
+            rpcHandler.executeRPC(rpc
+                    , function (params) { successCB(params); }
+                    , function (params) { errorCB(params); }
+            );
+        };
+
+        /**
+         * Set configuration to a specified API.
+         * @param serviceID ID of target service.
+         * @param apiURI URI of service's type API.
+         * @param config Configuration to apply. It updates the params field in the config.json file
+         * @param successCB Callback to call with results.
+         * @param errorCB Callback to call in case of error.
+         */
+        this.setServiceConfiguration = function(serviceID, apiURI, config, successCB, errorCB) {
+            //Calls to this method can be constrained using dashboard's feature
+            var rpc = rpcHandler.createRPC('ServiceConfiguration', 'setServiceConfiguration', [{'api':'http://webinos.org/api/dashboard'}, serviceID, apiURI, config]);
             rpcHandler.executeRPC(rpc
                     , function (params) { successCB(params); }
                     , function (params) { errorCB(params); }
@@ -3180,7 +3217,7 @@ if (typeof webinos.file === "undefined") webinos.file = {};
     if (self.service === parent.service) {
       var moveTo = self.rpc.createRPC(self.service, "moveTo", { source : self, parent : parent, newName : newName });
       self.rpc.executeRPC(moveTo, function (entry) {
-        if (entry.isDirectory) {
+        if (self.isDirectory) {
           successCallback(new DirectoryEntry(self.filesystem, entry.fullPath));
         } else {
           successCallback(new FileEntry(self.filesystem, entry.fullPath));
@@ -3193,7 +3230,7 @@ if (typeof webinos.file === "undefined") webinos.file = {};
         parent.rpc.executeRPC(download, function (entry) {
           var remove = self.rpc.createRPC(self.service, (self.isDirectory ? "removeRecursively" : "remove"), { entry : self });
           self.rpc.executeRPC(remove, function () {
-            if (entry.isDirectory) {
+            if (self.isDirectory) {
               successCallback(new DirectoryEntry(parent.filesystem, entry.fullPath));
             } else {
               successCallback(new FileEntry(parent.filesystem, entry.fullPath));
@@ -3209,7 +3246,7 @@ if (typeof webinos.file === "undefined") webinos.file = {};
     if (self.service === parent.service) {
       var copyTo = self.rpc.createRPC(self.service, "copyTo", { source : self, parent : parent, newName : newName });
       self.rpc.executeRPC(copyTo, function (entry) {
-        if (entry.isDirectory) {
+        if (self.isDirectory) {
           successCallback(new DirectoryEntry(self.filesystem, entry.fullPath));
         } else {
           successCallback(new FileEntry(self.filesystem, entry.fullPath));
@@ -3220,7 +3257,7 @@ if (typeof webinos.file === "undefined") webinos.file = {};
       self.rpc.executeRPC(getLink, function (link) {
         var download = parent.rpc.createRPC(parent.service, "download", { link : link, parent : parent, name : newName || self.name });
         parent.rpc.executeRPC(download, function (entry) {
-          if (entry.isDirectory) {
+          if (self.isDirectory) {
             successCallback(new DirectoryEntry(parent.filesystem, entry.fullPath));
           } else {
             successCallback(new FileEntry(parent.filesystem, entry.fullPath));
@@ -3611,6 +3648,294 @@ if (typeof webinos.file === "undefined") webinos.file = {};
   //   this.dispatchEvent(new webinos.util.ProgressEvent("writeend"));
   // };
 })(webinos.file);
+/*******************************************************************************
+*  Code contributed to the webinos project
+* 
+* Licensed under the Apache License, Version 2.0 (the "License");
+* you may not use this file except in compliance with the License.
+* You may obtain a copy of the License at
+*  
+*     http://www.apache.org/licenses/LICENSE-2.0
+*  
+* Unless required by applicable law or agreed to in writing, software
+* distributed under the License is distributed on an "AS IS" BASIS,
+* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+* See the License for the specific language governing permissions and
+* limitations under the License.
+* 
+* Copyright 2011 Alexander Futasz, Fraunhofer FOKUS
+******************************************************************************/
+(function() {
+
+/**
+ * Webinos Geolocation service constructor (client side).
+ * @constructor
+ * @param obj Object containing displayName, api, etc.
+ */
+WebinosGeolocation = function (obj) {
+	this.base = WebinosService;
+	this.base(obj);
+};
+
+WebinosGeolocation.prototype = new WebinosService;
+
+/**
+ * To bind the service.
+ * @param bindCB BindCallback object.
+ */
+WebinosGeolocation.prototype.bindService = function (bindCB, serviceId) {
+	// actually there should be an auth check here or whatever, but we just always bind
+	this.getCurrentPosition = getCurrentPosition;
+	this.watchPosition = watchPosition;
+	this.clearWatch = clearWatch;
+	
+	if (typeof bindCB.onBind === 'function') {
+		bindCB.onBind(this);
+	};
+}
+
+/**
+ * Retrieve the current position.
+ * @param positionCB Success callback.
+ * @param positionErrorCB Error callback.
+ * @param positionOptions Optional options.
+ */
+function getCurrentPosition(positionCB, positionErrorCB, positionOptions) { 
+	var rpc = webinos.rpcHandler.createRPC(this, "getCurrentPosition", positionOptions); // RPC service name, function, position options
+	webinos.rpcHandler.executeRPC(rpc, function (position) {
+		positionCB(position);
+	},
+	function (error) {
+		positionErrorCB(error);
+	});
+};
+
+var watchIdTable = {};
+
+/**
+ * Register a listener for position updates.
+ * @param positionCB Callback for position updates.
+ * @param positionErrorCB Error callback.
+ * @param positionOptions Optional options.
+ * @returns Registered listener id.
+ */
+function watchPosition(positionCB, positionErrorCB, positionOptions) {
+	var rpc = webinos.rpcHandler.createRPC(this, "watchPosition", [positionOptions]);
+
+	rpc.onEvent = function (position) {
+		positionCB(position);
+	};
+
+	rpc.onError = function (err) {
+		positionErrorCB(err);
+	};
+
+	webinos.rpcHandler.registerCallbackObject(rpc);
+	webinos.rpcHandler.executeRPC(rpc);
+
+	var watchId = parseInt(rpc.id, 16);
+	watchIdTable[watchId] = rpc.id;
+
+	return watchId;
+};
+
+/**
+ * Clear a listener.
+ * @param watchId The id as returned by watchPosition to clear.
+ */
+function clearWatch(watchId) {
+	var _watchId = watchIdTable[watchId];
+	if (!_watchId) return;
+
+	var rpc = webinos.rpcHandler.createRPC(this, "clearWatch", [_watchId]);
+	webinos.rpcHandler.executeRPC(rpc);
+
+	delete watchIdTable[watchId];
+	webinos.rpcHandler.unregisterCallbackObject({api:_watchId});
+};
+
+})();
+/*******************************************************************************
+*  Code contributed to the webinos project
+* 
+* Licensed under the Apache License, Version 2.0 (the "License");
+* you may not use this file except in compliance with the License.
+* You may obtain a copy of the License at
+*  
+*     http://www.apache.org/licenses/LICENSE-2.0
+*  
+* Unless required by applicable law or agreed to in writing, software
+* distributed under the License is distributed on an "AS IS" BASIS,
+* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+* See the License for the specific language governing permissions and
+* limitations under the License.
+*
+* Author: Giuseppe La Torre (giuseppe.latorre@dieei.unict.it)
+* Author: Stefano Vercelli (stefano.vercelli@telecomitalia.it)
+* 
+******************************************************************************/
+
+(function() {
+
+    var sensorListeners = new Array();
+
+    /**
+     * Webinos Sensor service constructor (client side).
+     * @constructor
+     * @param obj Object containing displayName, api, etc.
+     */
+    Sensor = function(obj) {
+       this.base = WebinosService;
+       this.base(obj);
+    };
+    Sensor.prototype = new WebinosService;
+    
+    /**
+     * To bind the service.
+     * @param bindCB BindCallback object.
+     */
+    Sensor.prototype.bind = function(bindCB) {             
+        var self = this;
+        var rpc = webinos.rpcHandler.createRPC(this, "getStaticData", []);
+        
+        webinos.rpcHandler.executeRPC(rpc,
+            function (result){
+            
+                self.maximumRange = result.maximumRange;
+                self.minDelay = result.minDelay;
+                self.power = result.power;
+                self.resolution = result.resolution;
+                self.vendor = result.vendor;  
+                self.version = result.version; 
+            
+                if (typeof bindCB.onBind === 'function') {
+                    bindCB.onBind(this);
+                };
+            },
+            function (error){
+                
+            }
+        );
+
+    };
+    
+    Sensor.prototype.configureSensor = function(params, successHandler, errorHandler){
+        var rpc = webinos.rpcHandler.createRPC(this, 'configureSensor', params);
+        webinos.rpcHandler.executeRPC(rpc, function () {
+                successHandler();
+            },
+            function (error) {
+                errorHandler(error);
+            });
+    };
+
+    Sensor.prototype.addEventListener = function(eventType, eventHandler, capture) {
+        var rpc = webinos.rpcHandler.createRPC(this, "addEventListener", eventType);
+        sensorListeners.push([rpc.id, eventHandler, this.id]);
+        rpc.onEvent = function (sensorEvent) {
+            eventHandler(sensorEvent);
+        };
+        webinos.rpcHandler.registerCallbackObject(rpc);
+        webinos.rpcHandler.executeRPC(rpc);
+    };
+
+    Sensor.prototype.removeEventListener = function(eventType, eventHandler, capture) {
+        for (var i = 0; i < sensorListeners.length; i++) {
+            if (sensorListeners[i][1] == eventHandler && sensorListeners[i][2] == this.id) {
+                var arguments = new Array();
+                arguments[0] = sensorListeners[i][0];
+                arguments[1] = eventType;
+                var rpc = webinos.rpcHandler.createRPC(this, "removeEventListener", arguments);
+                webinos.rpcHandler.executeRPC(rpc);
+                sensorListeners.splice(i,1);
+                break;
+            }
+        }
+    };
+}());
+
+
+(function() {
+
+    var actuatorListeners = new Array();
+    
+    /**
+     * Webinos Actuator service constructor (client side).
+     * @constructor
+     * @param obj Object containing displayName, api, etc.
+     */
+    ActuatorModule = function(obj) {
+        this.base = WebinosService;
+        this.base(obj);
+    };
+    
+    ActuatorModule.prototype = new WebinosService();
+
+    /**
+     * To bind the service.
+     * @param bindCB BindCallback object.
+     */
+    ActuatorModule.prototype.bind = function(bindCB) {
+            var self = this;
+            var rpc = webinos.rpcHandler.createRPC(this, "getStaticData", []);
+            webinos.rpcHandler.executeRPC(rpc,
+                function (result){
+            
+                    self.range = result.range;
+                    self.unit = result.unit;
+                    self.vendor = result.vendor;
+                    self.version = result.version;
+                    if (typeof bindCB.onBind === 'function') {
+                        bindCB.onBind(self);
+                    }
+                },
+                function (error){
+                    
+                }
+            );
+    };
+    
+    /**
+     * Launches an application.
+     * @param successCallback Success callback.
+     * @param errorCallback Error callback.
+     * @param applicationID Application ID to be launched.
+     * @param params Parameters for starting the application.
+    */
+    ActuatorModule.prototype.setValue = function (value, successCB, errorCallback){
+        var rpc = webinos.rpcHandler.createRPC(this, "setValue", value);        
+        rpc.onEvent = function (actuatorEvent) {
+            successCB(actuatorEvent);
+        };
+        webinos.rpcHandler.registerCallbackObject(rpc);
+        webinos.rpcHandler.executeRPC(rpc);        
+    };
+    
+    ActuatorModule.prototype.addEventListener = function(eventType, eventHandler, capture) {
+        var rpc = webinos.rpcHandler.createRPC(this, "addEventListener", eventType);
+        actuatorListeners.push([rpc.id, eventHandler, this.id]);
+        rpc.onEvent = function (actuatorEvent) {
+            eventHandler(actuatorEvent);
+        };
+        webinos.rpcHandler.registerCallbackObject(rpc);
+        webinos.rpcHandler.executeRPC(rpc);
+    };
+
+    ActuatorModule.prototype.removeEventListener = function(eventType, eventHandler, capture) {
+        for (var i = 0; i < actuatorListeners.length; i++) {
+            if (actuatorListeners[i][1] == eventHandler && actuatorListeners[i][2] == this.id) {
+                var arguments = new Array();
+                arguments[0] = actuatorListeners[i][0];
+                arguments[1] = eventType;
+                var rpc = webinos.rpcHandler.createRPC(this, "removeEventListener", arguments);
+                webinos.rpcHandler.executeRPC(rpc);
+                actuatorListeners.splice(i,1);
+                break;
+            }
+        }
+    };
+}());
+
 /*******************************************************************************
  *  Code contributed to the webinos project
  *
