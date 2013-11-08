@@ -7,7 +7,7 @@
   <!-- Start page for widget -->
   <content src="index.html" />
   <!-- Default icon for widget -->
-  <icon src="wtv.png" />
+  <icon src="webinosTV.png" />
   <!-- Widget author -->
   <author href="http://webinos.org" email="martin.lasak@fokus.fraunhofer.de">Martin Lasak</author>
   <!-- No webinos feature is required -->
