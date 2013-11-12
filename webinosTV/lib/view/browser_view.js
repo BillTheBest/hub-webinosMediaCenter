@@ -10,7 +10,7 @@ var util = require('util');
 
 var ControlsView = require('./controls_view.js');
 
-var buttonHeight=0, tappedOn = 0, clickStartEvent=null;
+var buttonHeight=0;
 
 function friendlyName(info) {
   if (info.type === 'upnp') {
@@ -60,18 +60,9 @@ function ListView(items, selection, list, wrapper, fadeout) {
     };
   }));
 
-  $(list).asEventStream('mousedown').merge($(list).asEventStream('touchstart')).onValue(function(e){
-    tappedOn=Date.now();
-    clickStartEvent=e;
-  });
-
-
-
   selection.apply($(list).asEventStream('click').merge($(list).asEventStream('touchend')).debounceImmediate(500).filter(function(e){
-    if(!e.screenY||!clickStartEvent) return true;
-    var justClick = (Date.now()-tappedOn<250);
-    var movedDelta = Math.max(e.screenY, clickStartEvent.screenY)-Math.min(e.screenY, clickStartEvent.screenY)+Math.max(e.screenX, clickStartEvent.screenX)-Math.min(e.screenX, clickStartEvent.screenX);
-    return justClick && movedDelta<10;
+    console.log(self.scroll);
+    return !self.scroll.moved;
   }).map(function (event) {
     return function (selection) {
       $('#searchfield').blur();
@@ -256,7 +247,6 @@ function NavigationView (viewModel, listViews, horizontalScroll) {
           break;
         case 'enter':
           if (navVisible) {
-            tappedOn=Date.now();
             $(columns[curCol]+".focus").click();
           }
           break;
@@ -305,8 +295,8 @@ function BrowserView(viewModel) {
 
   viewModel.search().bind(bjq.textFieldValue($('#searchfield')));
 
-  viewModel.prepend().plug($('#prepend').asEventStream('click').merge($('#prepend').asEventStream('touchend')).debounceImmediate(500));
-  viewModel.append().plug($('#append').asEventStream('click').merge($('#append').asEventStream('touchend')).debounceImmediate(500));
+  viewModel.prepend().plug($('#prepend').asEventStream('click').merge($('#prepend').asEventStream('touchend')).debounceImmediate(500).filter(function(e){return !horizontalScroll.moved;}));
+  viewModel.append().plug($('#append').asEventStream('click').merge($('#append').asEventStream('touchend')).debounceImmediate(500).filter(function(e){return !horizontalScroll.moved;}));
 
   viewModel.selectedPeer().onValue(function (selectedPeer) {
     $('#peer').text(selectedPeer === '<no-peer>' ? "Select a target" : friendlyName(selectedPeer));
@@ -387,10 +377,6 @@ function BrowserView(viewModel) {
   $(window).resize(function() {
     calcSize();
   });
-
-  document.addEventListener('touchmove', function(e) {
-    e.preventDefault();
-  }, false);
 
   document.addEventListener('DOMContentLoaded', function() {
     setTimeout(loaded, 800);

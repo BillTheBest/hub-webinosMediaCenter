@@ -44,7 +44,9 @@ function SelectDeviceListView(items, selection) {
     self.refresh();
   });
 
-  selection.apply($('#selectDevicelist').asEventStream('click').merge($('#selectDevicelist').asEventStream('touchend')).debounceImmediate(500).map(function (event) {
+  selection.apply($('#selectDevicelist').asEventStream('click').merge($('#selectDevicelist').asEventStream('touchend')).debounceImmediate(500).filter(function(e){
+    return !self.scroll.moved;
+  }).map(function (event) {
     return function (selection) {
       var $item = $(event.target).closest('li');
       if (!$item.length) return selection;
