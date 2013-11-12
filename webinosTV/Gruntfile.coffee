@@ -68,7 +68,7 @@ module.exports = (grunt) ->
         options:
           archive: 'webinosTV.wgt'
           mode: 'zip'
-        src: ['css/*', 'dist/*', 'images/*', 'config.xml', 'index.html', 'webinosTV.png']
+        src: ['css/*', 'dist/*', 'images/*', 'images/Remote/*', 'config.xml', 'index.html', 'webinosTV.png']
 
   grunt.loadNpmTasks 'grunt-browserify'
   grunt.loadNpmTasks 'grunt-contrib-clean'
