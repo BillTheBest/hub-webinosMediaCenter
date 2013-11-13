@@ -61,7 +61,6 @@ function ListView(items, selection, list, wrapper, fadeout) {
   }));
 
   selection.apply($(list).asEventStream('click').merge($(list).asEventStream('touchend')).debounceImmediate(500).filter(function(e){
-    console.log(self.scroll);
     return !self.scroll.moved;
   }).map(function (event) {
     return function (selection) {
@@ -182,7 +181,7 @@ function QueueListView(viewModel) {
   this.htmlify = function (value) {
     var html;
     if (typeof value.item.type === 'string' && value.item.type.toLowerCase().indexOf('image') === 0) {
-      html = '<li class="imageContent nav_qu"><img src="' + value.item.thumbnailURIs[0] + '">';
+      html = '<li class="imageContent nav_qu"><p class="playindicator">' + (value.current ? '▶ ' : '') + '</p><img src="' + value.item.thumbnailURIs[0] + '">';
     } else {
       html = '<li class="textContent nav_qu"><p>' + (value.current ? '▶ ' : '') + payment.name(value.item.title) + (payment.encrypted(value.item.title) ? ' (' + payment.price(value.item.title) + '€)' : '') + '</p>';
     }
@@ -372,8 +371,6 @@ function BrowserView(viewModel) {
     checkFadeout();
   }
 
-  calcSize();
-
   $(window).resize(function() {
     calcSize();
   });
@@ -381,6 +378,8 @@ function BrowserView(viewModel) {
   document.addEventListener('DOMContentLoaded', function() {
     setTimeout(loaded, 800);
   }, false);
+
+  calcSize();
 }
 
 

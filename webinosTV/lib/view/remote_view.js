@@ -28,7 +28,6 @@ function calcSize() {
     $(".clickAreaRight").css({width: tapButtonheight*0.35, height: tapButtonheight*0.35, top: tapButtonheight*0.325+topOffset, left:(tapButtonheight*0.325+tapButtonheight*0.325)});
     $(".clickAreaOk").css({width: tapButtonheight*0.25, height: tapButtonheight*0.25, left: tapButtonheight*0.375, top:tapButtonheight*0.375+topOffset});
     $(".switchButton").css({width: backButtonheight*0.12, height: backButtonheight*0.12});
-    $(".logoArea").css({width: backButtonheight*0.30, height: backButtonheight*0.09});
 
   }else{
     $("#orientation").removeClass('landscape');
@@ -49,7 +48,6 @@ function calcSize() {
     $(".clickAreaRight").css({width: tapButtonwidth*0.35, height: tapButtonwidth*0.35, bottom: tapButtonwidth*0.325, left:(tapButtonwidth*0.325+tapButtonwidth*0.325)+leftOffset, top: ""});
     $(".clickAreaOk").css({width: tapButtonwidth*0.25, height: tapButtonwidth*0.25, left: tapButtonwidth*0.375+leftOffset, bottom:tapButtonwidth*0.375, top: ""});
     $(".switchButton").css({width: backButtonwidth*0.12, height: backButtonwidth*0.12});
-    $(".logoArea").css({width: backButtonwidth*0.30, height: backButtonwidth*0.09});
   }
 }
 

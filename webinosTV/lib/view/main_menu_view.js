@@ -154,7 +154,6 @@ function NavigationView (viewModel) {
 function MainMenuView(viewModel){
   var navigationView = new NavigationView(viewModel);
   var selectDeviceListView = new SelectDeviceListView(viewModel.devices(), viewModel.selectedDevice());
-  calcSize();
 
   viewModel.title().assign($('#selectDeviceTag'), 'text');
 
@@ -202,6 +201,17 @@ function MainMenuView(viewModel){
 
   closeSelectDevice();
 
+  $('.webinoslogo').fadeOut();
+  setInterval(function(){
+    if($('.webinoslogo').is(":visible")){
+      $('.webinoslogo').fadeOut(1000);
+      $('.fokuslogo').fadeIn(1000);
+    }else{
+      $('.webinoslogo').fadeIn(1000);
+      $('.fokuslogo').fadeOut(1000);
+    }
+  }, 4000);
+
   function calcSize(){
     var width = $(window).innerWidth();
     var height = $(window).innerHeight();
@@ -218,6 +228,17 @@ function MainMenuView(viewModel){
     $('.mainmenulist').height(height-4*margin);
     $('.mainmenulist').css({margin: margin, top: margin*2});
     $('.mainmenulist').width($('.menu').width()-2*margin);
+
+    $('.logoArea').height(height*0.05);
+    $('.logoArea').width(height*0.05);
+    $('.logoArea').hover(
+      function(){ 
+        $('.logoArea').height(height*0.1);
+        $('.logoArea').width($('.webinoslogo').width());
+      },function(){ 
+        $('.logoArea').height(height*0.05);
+        $('.logoArea').width(height*0.05);
+      });
 
     selectDeviceListView.refresh();
   }
@@ -281,6 +302,8 @@ function MainMenuView(viewModel){
   window.openSelectDevice=openSelectDevice;
   window.closeMainmenu=closeMainmenu;
   window.closeSelectDevice=closeSelectDevice;
+
+  calcSize();
 }
 
 module.exports = MainMenuView;

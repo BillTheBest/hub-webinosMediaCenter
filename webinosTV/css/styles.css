@@ -70,7 +70,7 @@ video {
     height: 100%;
     position: absolute;
     top: 0; left: 0;
-    z-index: 11;
+    z-index: 20;
     background: #333;
 }
 
@@ -149,7 +149,7 @@ video {
 #startscreen img {
     width: 50%;
     float: right;
-    margin: 0 12.5%;
+    margin: 5% 12.5%;
 }
 
 .browserMainMenuButton{
@@ -279,9 +279,19 @@ video {
     height: 20px;
     padding-top: 4px; 
 }
-.imageContent > .selectIcon {
+
+.imageContent > .selectIcon{
     position: relative;
     top: 38px;
+}
+
+.playindicator{
+    position: absolute;
+    top: 38px;
+    left: 0;
+    height: 20px;
+    padding: 4px;
+    display: inline-block;
 }
 
 .thumbnail {
@@ -434,8 +444,6 @@ video {
 
 }
 
-
-
 .tapButton{
     background-size: contain;
     background-repeat: no-repeat;
@@ -451,11 +459,18 @@ video {
     background-position: bottom center;
 }
 
-.switchButtons{
-    float: right;
-    margin-top: 1em;
+.landscape .switchButtons{
+    position: absolute;
+    bottom: 0; right: 0;
+    margin-bottom: 1em;
     margin-right: 1em;
 }
+.portrait .switchButtons{
+    float: left;
+    margin-top: 1em;
+    margin-left: 1em;
+}
+
 .switchButtons .switchButton{
     top: 0px;
     position: relative;
@@ -465,13 +480,11 @@ video {
     cursor: pointer;
     background-color: #3F3F3F;
 }
-
 .landscape .switchButton{
     margin-bottom: 0.2em;
 }
-
 .portrait .switchButton{
-    margin-left: 0.2em;
+    margin-right: 0.2em;
     float: right;
 }
 
@@ -492,20 +505,16 @@ video {
 }
 
 .logoArea{
-    background-image: url(../images/webinos_logo.svg);
-    background-size: contain;
-    background-repeat: no-repeat;
-    background-position: right bottom;
     position: absolute;
-    margin: 1em;
+    width: 4em;
+    top: 0px; right: 0px;
+    z-index: 15;
 }
 
-.landscape .logoArea{
-    bottom: 0px; right: 0px;
-}
-
-.portrait .logoArea{
-    top: 0px; left: 0px;
+.logoArea img{    
+    position: absolute;
+    height: 100%;
+    left: 0px;
 }
 
 .landscape .clickAreaBack:active{
@@ -636,7 +645,7 @@ border-radius: 100px;
 
 }
 .controlSbar div{
-        width: 0%;
+    width: 0%;
     height: 100%%;
     /*transition: width 1s;
     transition-timing-function: linear;
@@ -665,7 +674,7 @@ border-radius: 100px;
     z-index: 3;
     left: 50%;
     margin-left: -0.35em;
-    border-color:  transparent transparent #666666;
+    border-color::;  transparent transparent #666666;
     border-top-color: transparent;
     border-right-color: transparent;
     border-bottom-color: #666666;
