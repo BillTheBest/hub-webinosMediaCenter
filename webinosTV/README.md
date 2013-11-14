@@ -28,11 +28,11 @@ to scan from this loaction:
     }
 ```
 
-## Media (Play) API
+## Mediaplay API
 
 ```
 # $ cd $webinos-pzp-path
-$ npm install git+https://github.com/webinos/webinos-api-media.git
+$ npm install git+https://github.com/webinos/webinos-api-mediaplay.git
 # In addition you need to install mplayer
 # on osx:
 $ brew install mplayer 
