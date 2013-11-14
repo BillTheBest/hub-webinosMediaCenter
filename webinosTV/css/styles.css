@@ -278,9 +278,6 @@ video {
     float: right!important;
     height: 20px;
     padding-top: 4px; 
-}
-
-.imageContent > .selectIcon{
     position: relative;
     top: 38px;
 }
