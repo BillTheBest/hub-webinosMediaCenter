@@ -210,6 +210,8 @@ function MainMenuView(viewModel){
       $('.webinoslogo').fadeIn(1000);
       $('.fokuslogo').fadeOut(1000);
     }
+    $('.logoArea').height(height*0.05);
+    $('.logoArea').width(height*0.05);
   }, 4000);
 
   function calcSize(){
@@ -234,10 +236,12 @@ function MainMenuView(viewModel){
     $('.logoArea').hover(
       function(){ 
         $('.logoArea').height(height*0.1);
-        $('.logoArea').width($('.webinoslogo').width());
-      },function(){ 
+        $('.logoArea').width(height*0.27);
+        // $('.logoArea').on('click', function() { window.open("http://www.fokus.fraunhofer.de/go/webinostv", '_blank');});
+      },function(){
         $('.logoArea').height(height*0.05);
         $('.logoArea').width(height*0.05);
+        // $('.logoArea').off('click'); 
       });
 
     selectDeviceListView.refresh();

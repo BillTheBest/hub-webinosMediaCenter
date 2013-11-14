@@ -510,11 +510,24 @@ video {
     top: 0px; right: 0px;
     z-index: 15;
 }
+.logoArea:hover{
+    cursor: pointer;
+}
 
-.logoArea img{    
+.logoArea div{    
     position: absolute;
+    width: 100%;
     height: 100%;
     left: 0px;
+}
+
+.webinoslogo, .fokuslogo{
+    background-image: url(../images/grey_webinos_72dpi.png);
+    background-size: cover;
+    background-repeat: no-repeat;
+}
+.fokuslogo{
+    background-image: url(../images/grey_FOKUS_72dpi.png);
 }
 
 .landscape .clickAreaBack:active{
