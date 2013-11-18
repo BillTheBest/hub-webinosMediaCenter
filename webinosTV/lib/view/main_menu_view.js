@@ -93,6 +93,9 @@ function NavigationView (viewModel) {
             break;
         }
       }
+      if($('.nav_st').length-1 < stCurPos){
+        stCurPos = 0;
+      }
       $(".nav_st").eq(stCurPos).addClass('focus');
       startNavVisibleTimeout();
 
