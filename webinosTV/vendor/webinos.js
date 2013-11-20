@@ -190,7 +190,19 @@
 (function () {
 	if (typeof webinos === 'undefined')
 		webinos = {};
-	var logger = console;
+	var _console = function(type,args){
+		if(typeof module === 'undefined' && type === "log" && (typeof webinos === 'undefined' || typeof webinos.logging != 'function' || !webinos.logging())) {
+			return;
+		}
+		(console[type]).apply(console,args);
+	}
+	var logger = {
+		log:function(){_console("log",arguments)},
+		info:function(){_console("info",arguments)},
+		warn:function(){_console("warn",arguments)},
+		error:function(){_console("error",arguments)},
+		debug:function(){_console("debug",arguments)}
+	};
 
 	var idCount = 0;
 
@@ -1142,6 +1154,12 @@
 if (typeof exports === "undefined") exports = window;
 if (typeof exports.webinos === "undefined") exports.webinos = {};
 if (typeof exports.webinos.session === "undefined") exports.webinos.session = {};
+if (typeof exports.webinos.logging === "undefined") exports.webinos.logging = function(enable){
+    if(typeof enable === "boolean") {
+        enable ? localStorage.setItem("verboseLoggingEnabled","true") : localStorage.removeItem("verboseLoggingEnabled");
+    }
+    return (typeof localStorage != "undefined" && "true" === localStorage.getItem("verboseLoggingEnabled"));
+};
 
 if (typeof _webinos === "undefined") {
     _webinos = {};
@@ -1221,12 +1239,14 @@ if (typeof _webinos === "undefined") {
             "resp_to":webinos.session.getSessionId(),
             "payload":rpc};
         if(rpc.register !== "undefined" && rpc.register === true) {
-            console.log(rpc);
+            if(webinos.logging()) {
+                console.log(rpc);
+            }
             channel.send(JSON.stringify(rpc));
         }else {
-            console.log("creating callback");
-            console.log("WebSocket Client: Message Sent");
-            console.log(message);
+            if(webinos.logging()) {
+                console.log("WebSocket Client: Message Sent", message);
+            }
             channel.send(JSON.stringify(message));
         }
     };
@@ -1361,6 +1381,20 @@ if (typeof _webinos === "undefined") {
 (function () {
     var channel = null;
 
+    var _console = function(type,args){
+        if(typeof module === 'undefined' && type === "log" && (typeof webinos === 'undefined' || typeof webinos.logging != 'function' || !webinos.logging())) {
+            return;
+        }
+        (console[type]).apply(console,args);
+    }
+    var logger = {
+        log:function(){_console("log",arguments)},
+        info:function(){_console("info",arguments)},
+        warn:function(){_console("warn",arguments)},
+        error:function(){_console("error",arguments)},
+        debug:function(){_console("debug",arguments)}
+    };
+
     /**
      * Creates the socket communication channel
      * for a locally hosted websocket server at port 8080
@@ -1387,7 +1421,7 @@ if (typeof _webinos === "undefined") {
             hostname = window.location.hostname;
             if (hostname == "") isWebServer = false; // We are inside a local file.
             if(hostname !== "localhost" && hostname !=="127.0.0.1") {
-              console.log("websocket connection is only possible with address localhost or 127.0.0.1. Please change to localhost or 127.0.0.1 " +
+            logger.log("websocket connection is only possible with address localhost or 127.0.0.1. Please change to localhost or 127.0.0.1 " +
                   "to connect to the PZP");
             }
 
@@ -1403,16 +1437,16 @@ if (typeof _webinos === "undefined") {
                         var resp = JSON.parse (xmlhttp.responseText);
                         port = resp.websocketPort;
                     } else { // We are not inside a pzp or widget server.
-                        console.log ("CAUTION: webinosConfig.json failed to load. Are you on a pzp/widget server or older version of webinos? Trying the guess  communication channel's port.");
+                        logger.log ("CAUTION: webinosConfig.json failed to load. Are you on a pzp/widget server or older version of webinos? Trying the guess  communication channel's port.");
                         port = port + 1; // Guessing that the port is +1 to the webserver's. This was the way to detect it on old versions of pzp.
                     }
                 } catch (err) { // XMLHttpRequest is not supported or something went wrong with it.
-                    console.log ("CAUTION: The pzp communication host and port are unknown. Trying the default communication channel.");
+                    logger.log ("CAUTION: The pzp communication host and port are unknown. Trying the default communication channel.");
                     useDefaultHost = true;
                     useDefaultPort = true;
                 }
             } else { // Let's try the default pzp hostname and port.
-                console.log ("CAUTION: No web server detected. Using a local file? Trying the default communication channel.");
+                logger.log ("CAUTION: No web server detected. Using a local file? Trying the default communication channel.");
                 useDefaultHost = true;
                 useDefaultPort = true;
             }
@@ -1435,7 +1469,7 @@ if (typeof _webinos === "undefined") {
         webinos.session.setPzpPort (port);
 
         channel.onmessage = function (ev) {
-            console.log ('WebSocket Client: Message Received : ' + JSON.stringify (ev.data));
+            logger.log ('WebSocket Client: Message Received : ' + JSON.stringify (ev.data));
             var data = JSON.parse (ev.data);
             if (data.type === "prop") {
                 webinos.session.handleMsg (data);
@@ -1451,7 +1485,7 @@ if (typeof _webinos === "undefined") {
           webinos.session.message_send({type: 'prop', payload: {status:'registerBrowser', value: url, origin: origin}});
         };
         channel.onerror = function(evt) {
-          console.log("WebSocket error" + JSON.stringify(evt));
+          console.error("WebSocket error", evt);
         };
     }
 
@@ -2688,7 +2722,334 @@ if (typeof _webinos === "undefined") {
 	};
 	
 	
-}());(function () {
+}());/*******************************************************************************
+ *   Code contributed to the webinos project
+ * 
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *   
+ *        http://www.apache.org/licenses/LICENSE-2.0
+ *   
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ * 
+ * Copyright 2013 Istituto Superiore Mario Boella (ISMB)
+ ******************************************************************************/
+
+(function(){   
+    Contacts = function(obj) {
+        WebinosService.call(this, obj);
+    };    
+    _webinos.registerServiceConstructor("http://webinos.org/api/contacts", Contacts);        
+
+    Contacts.prototype.bindService = function (bindCB, serviceId) {
+        this.syncOutlookContacts = syncOutlookContacts;
+        this.syncThunderbirdContacts = syncThunderbirdContacts;
+	    this.syncGoogleContacts = syncGoogleContacts;
+	    this.find = find;
+
+	    if (typeof bindCB.onBind === 'function') {
+		    bindCB.onBind(this);
+	    };
+    }
+    
+    /**
+     * sync Outlook contacts with local cache on win32 systems ONLY
+     * */
+    function syncOutlookContacts(attr, successCB,errorCB)
+    {
+        var rpc = webinos.rpcHandler.createRPC(this, "syncOutlookContacts", [ attr ]);
+        
+        webinos.rpcHandler.executeRPC(rpc, function(params){
+            successCB(params);
+        }, function(error){
+            if (typeof(errorCB) !== 'undefined')
+                errorCB(error);
+        });
+    };
+    
+    /**
+     * sync thunderbird contacts with local cache
+     * */
+    function syncThunderbirdContacts(attr, successCB,errorCB)
+    {
+        var rpc = webinos.rpcHandler.createRPC(this, "syncThunderbirdContacts", [ attr ]);
+
+        webinos.rpcHandler.executeRPC(rpc, function(params){
+            successCB(params);
+        }, function(error){
+            if (typeof(errorCB) !== 'undefined')
+                errorCB(error);
+        });
+    };
+   
+    /**
+    * returns true if contacts service is authenticated with GMail using username and password
+    * or a valid address book file could be open
+    * TODO this method has to be removed when user profile will handle this
+    * */
+    function syncGoogleContacts(attr, successCB,errorCB)
+    {
+        var rpc = webinos.rpcHandler.createRPC(this, "syncGoogleContacts", [ attr ]);
+        // function
+        webinos.rpcHandler.executeRPC(rpc, function(params)
+        {
+            successCB(params);
+        }, function(error)
+        {
+            if (typeof(errorCB) !== 'undefined')
+                errorCB(error);
+        });
+    };
+     
+
+    /**
+     * return a list of contacts matching some search criteria
+     * 
+     * TODO full W3C specs
+     */
+    function find(attr,successCB,errorCB)
+    {
+        var rpc = webinos.rpcHandler.createRPC(this, "find", [ attr ]);
+        //RPCservicename,
+        // function
+        webinos.rpcHandler.executeRPC(rpc, function(params)
+        {
+            successCB(params);
+        }, function(error)
+        {
+            if (typeof(errorCB) !== 'undefined')
+            errorCB(error);
+        });
+    };
+
+}());
+/*******************************************************************************
+*  Code contributed to the webinos project
+* 
+* Licensed under the Apache License, Version 2.0 (the "License");
+* you may not use this file except in compliance with the License.
+* You may obtain a copy of the License at
+*  
+*     http://www.apache.org/licenses/LICENSE-2.0
+*  
+* Unless required by applicable law or agreed to in writing, software
+* distributed under the License is distributed on an "AS IS" BASIS,
+* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+* See the License for the specific language governing permissions and
+* limitations under the License.
+* 
+* Copyright 2012 Ziran Sun Samsung Electronics(UK) Ltd
+*
+******************************************************************************/
+(function () {
+
+	/**
+	 * Webinos Bluetooth Discovery service constructor (client side).
+	 * @constructor
+	 * @param obj Object containing displayName, api, etc.
+	 */
+	DiscoveryModule = function (obj) {
+		this.base = WebinosService;
+		this.base(obj);
+	};
+	
+	DiscoveryModule.prototype = new WebinosService();
+	
+	/**
+	 * To find devices that support the specific service. This applies to both Android and Linux
+	 * @param data Service type.
+	 * @param success Success callback.
+	 */
+	DiscoveryModule.prototype.BTfindservice = function (data, success) {
+		console.log("BT findservice");
+		var rpc = webinos.rpcHandler.createRPC(this, "BTfindservice", arguments);
+		webinos.rpcHandler.executeRPC(rpc, function(params) {
+			success(params);
+		});
+	};
+	
+	
+	/**
+	 * To find devices using DNS . This applies to Android
+	 * @param data Service type.
+	 * @param success Success callback.
+	 */
+	DiscoveryModule.prototype.DNSfindservice = function(data, success){
+		console.log("DNS findservice");
+		var rpc = webinos.rpcHandler.createRPC(this, "DNSfindservice", arguments);
+		webinos.rpcHandler.executeRPC(rpc, function(params) {
+			success(params);
+		});
+	};
+	
+	/**
+	 * To find Heart Rate Monitor device, only support Android OS.
+	 * @param data Service type.
+	 * @param success Success callback.
+	 */
+
+	DiscoveryModule.prototype.findHRM = function(data, success){
+		console.log("HRM find HRM");
+  		var rpc = webinos.rpcHandler.createRPC(this, "findHRM",data);
+	  	webinos.rpcHandler.executeRPC(rpc, function(params) {
+	  		success(params);
+	  	});
+	};
+
+}());
+(function() {
+
+WebinosDeviceOrientation = function (obj) {
+	this.base = WebinosService;
+	this.base(obj);
+};
+
+var _referenceMappingDo = new Array();
+var _eventIdsDo = new Array('deviceorientation', 'compassneedscalibration', 'devicemotion');
+
+WebinosDeviceOrientation.prototype = new WebinosService;
+
+WebinosDeviceOrientation.prototype.bindService = function (bindCB, serviceId) {
+	// actually there should be an auth check here or whatever, but we just always bind
+	this.addEventListener = addEventListener;
+	this.removeEventListener = removeEventListener;
+	this.dispatchEvent = dispatchEvent;
+	
+    //Objects
+    this.DeviceOrientationEvent = DeviceOrientationEvent;
+    this.DeviceMotionEvent = DeviceMotionEvent;
+    this.Acceleration = Acceleration;
+    this.RotationRate = RotationRate;
+    
+    
+    
+    
+	if (typeof bindCB.onBind === 'function') {
+		bindCB.onBind(this);
+	};
+}
+
+function addEventListener(type, listener, useCapture) {
+    
+    if(_eventIdsDo.indexOf(type) != -1){	
+    
+            console.log("LISTENER"+ listener);
+    
+			var rpc = webinos.rpcHandler.createRPC(this, "addEventListener", [type, listener, useCapture]);
+			_referenceMappingDo.push([rpc.id, listener]);
+
+			console.log('# of references' + _referenceMappingDo.length);	
+			rpc.onEvent = function (orientationEvent) {
+				listener(orientationEvent);
+			};
+            
+			webinos.rpcHandler.registerCallbackObject(rpc);
+			webinos.rpcHandler.executeRPC(rpc);
+		}else{
+			console.log(type + ' not found');	
+		}
+};
+
+//DEFINITION BASE EVENT
+WDomEvent = function(type, target, currentTarget, eventPhase, bubbles, cancelable, timestamp){
+	this.initEvent(type, target, currentTarget, eventPhase, bubbles, cancelable, timestamp);
+}
+
+WDomEvent.prototype.speed = 0;
+
+WDomEvent.prototype.initEvent = function(type, target, currentTarget, eventPhase, bubbles, cancelable, timestamp){
+    this.type = type;
+    this.target = target;
+    this.currentTarget = currentTarget;
+    this.eventPhase = eventPhase;
+    this.bubbles = bubbles;
+    this.cancelable  = cancelable;
+    this.timestamp = timestamp; 
+}
+
+
+DeviceOrientationEvent = function(alpha, beta, gamma){
+	this.initDeviceOrientationEvent(alpha, beta, gamma);
+}
+
+DeviceOrientationEvent.prototype = new WDomEvent();
+DeviceOrientationEvent.prototype.constructor = DeviceOrientationEvent;
+DeviceOrientationEvent.parent = WDomEvent.prototype; // our "super" property
+
+DeviceOrientationEvent.prototype.initDeviceOrientationEvent = function(alpha, beta, gamma){
+	this.alpha = alpha;
+	this.beta = beta;
+	this.gamma = gamma;
+    
+    var d = new Date();
+    var stamp = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), d.getUTCHours(), d.getUTCMinutes(), d.getUTCSeconds());
+    var stamp = stamp + d.getUTCMilliseconds();
+    
+	DeviceOrientationEvent.parent.initEvent.call(this,'deviceorientation', null, null, null, false, false, stamp);
+}
+Acceleration = function(x,y,z){
+	this.x = x;
+	this.y = y;
+	this.z = z;
+}
+RotationRate = function(alpha, beta, gamma){
+	this.alpha = alpha;
+	this.beta = beta;
+	this.gamma = gamma;
+}
+DeviceMotionEvent = function(acceleration, accelerationIncludingGravity, rotationRate, interval){
+	this.initDeviceMotionEvent(acceleration, accelerationIncludingGravity, rotationRate, interval);
+}
+DeviceMotionEvent.prototype = new WDomEvent();
+DeviceMotionEvent.prototype.constructor = DeviceOrientationEvent;
+DeviceMotionEvent.parent = WDomEvent.prototype; // our "super" property
+
+DeviceMotionEvent.prototype.initDeviceMotionEvent = function(acceleration, accelerationIncludingGravity, rotationRate, interval){
+	this.acceleration = acceleration;
+	this.accelerationIncludingGravity = accelerationIncludingGravity;
+	this.rotationRate = rotationRate;
+	this.interval = interval;
+    var d = new Date();
+    var stamp = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), d.getUTCHours(), d.getUTCMinutes(), d.getUTCSeconds());
+    var stamp = stamp + d.getUTCMilliseconds();
+	DeviceOrientationEvent.parent.initEvent.call(this,'devicemotion', null, null, null, false, false, stamp);
+}
+
+function removeEventListener(type, listener, useCapture) {
+        console.log("LISTENER"+ listener);
+        var refToBeDeleted = null;
+		for(var i = 0; i < _referenceMappingDo.length; i++){
+			console.log("Reference" + i + ": " + _referenceMappingDo[i][0]);
+			console.log("Handler" + i + ": " + _referenceMappingDo[i][1]);
+			if(_referenceMappingDo[i][1] == listener){
+					var arguments = new Array();
+					arguments[0] = _referenceMappingDo[i][0];
+					arguments[1] = type;
+					console.log("ListenerObject to be removed ref#" + _referenceMappingDo[i][0]);                                             
+                    var rpc = webinos.rpcHandler.createRPC(this, "removeEventListener", arguments);
+					webinos.rpcHandler.executeRPC(rpc,
+						function(result){
+							callOnSuccess(result);
+						},
+						function(error){
+							callOnError(error);
+						}
+					);
+					break;			
+			}	
+    }
+};
+
+function dispatchEvent(event) {
+    //TODO
+};
+
+})();(function () {
 	var PropertyValueSuccessCallback, ErrorCallback, DeviceAPIError, PropertyRef;
 
 	DeviceStatusManager = function (obj) {
@@ -3794,7 +4155,7 @@ function clearWatch(watchId) {
      * To bind the service.
      * @param bindCB BindCallback object.
      */
-    Sensor.prototype.bind = function(bindCB) {             
+    Sensor.prototype.bind = function(bindCB) {
         var self = this;
         var rpc = webinos.rpcHandler.createRPC(this, "getStaticData", []);
         
@@ -3816,8 +4177,11 @@ function clearWatch(watchId) {
                 
             }
         );
-
     };
+
+    Sensor.prototype.bindService = function(bindCB) {
+        this.bind(bindCB);   
+    }
     
     Sensor.prototype.configureSensor = function(params, successHandler, errorHandler){
         var rpc = webinos.rpcHandler.createRPC(this, 'configureSensor', params);
@@ -3841,7 +4205,7 @@ function clearWatch(watchId) {
 
     Sensor.prototype.removeEventListener = function(eventType, eventHandler, capture) {
         for (var i = 0; i < sensorListeners.length; i++) {
-            if (sensorListeners[i][1] == eventHandler && sensorListeners[i][2] == this.id) {
+            if (sensorListeners[i][1].toString().replace(/ /g,'') === eventHandler.toString().replace(/ /g,'') && sensorListeners[i][2] == this.id) {
                 var arguments = new Array();
                 arguments[0] = sensorListeners[i][0];
                 arguments[1] = eventType;
@@ -4328,340 +4692,75 @@ function clearWatch(watchId) {
 		}
             
 }());
-//implementation at client side, includes RPC massage invokation
-/**
- * Interface for TV control and management.
- * 
- * 
- * The interface provides means to acquire a list of tv sources, channels and
- * their streams.
- * 
- * The TV channel streams can be displayed in HTMLVideoElement object
- * (http://dev.w3.org/html5/spec/video.html). Alternatively the API provides
- * means to control channel management of the native hardware TV, by allowing to
- * set a channel or watch for channel changes that are invoked otherwise.
- * 
- * The tv object is made available under the webinos namespace, i.e. webinos.tv.
- * 
- */
+/*******************************************************************************
+*  Code contributed to the webinos project
+* 
+* Licensed under the Apache License, Version 2.0 (the "License");
+* you may not use this file except in compliance with the License.
+* You may obtain a copy of the License at
+*  
+*     http://www.apache.org/licenses/LICENSE-2.0
+*  
+* Unless required by applicable law or agreed to in writing, software
+* distributed under the License is distributed on an "AS IS" BASIS,
+* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+* See the License for the specific language governing permissions and
+* limitations under the License.
+* 
+* Copyright 2011 Andre Paul, Fraunhofer FOKUS
+******************************************************************************/
 (function() {
 
-	var TVDisplayManager, TVDisplaySuccessCB, TVTunerManager, TVSuccessCB, TVErrorCB, TVError, TVSource, Channel, ChannelChangeEvent;
-	var that = this;	
-	
 	/**
-	 * Interface to manage what's currently displayed on TV screen.
-	 * 
-	 * 
-	 * This interface is useful when an app doesn't want to show the broadcast
-	 * itself, but let the TV natively handle playback, i.e. not in a web
-	 * context. Useful to build an control interface that allows channel
-	 * switching.
-	 * 
+	 * ...
+	 * @constructor
+	 * @param obj Object containing displayName, api, etc.
 	 */
-	TVDisplayManager = function(){};
-
-	/**
-	 * Switches the channel natively on the TV (same as when a hardware remote
-	 * control would be used).
-	 * 
-	 */
-	TVDisplayManager.prototype.setChannel = function(channel, successCallback,
-			errorCallback) {
-		var rpc = webinos.rpcHandler.createRPC(that, "display.setChannel", arguments);
-		webinos.rpcHandler.executeRPC(rpc, function(params) {
-			successCallback(params);
-		}, function(error) {
-			if(errorCallback) errorCallback();
-		});
-		return;
-	};
-	
-	//TODO: only internal temporarily use!
-	//This is only to bridge the missing Media Capture API and EPG functionality 
-	TVDisplayManager.prototype.getEPGPIC = function(channel, successCallback,
-			errorCallback) {
-		var rpc = webinos.rpcHandler.createRPC(that, "display.getEPGPIC", arguments);
-		webinos.rpcHandler.executeRPC(rpc, function(params) {
-			successCallback(params);
-		}, function(error) {
-			if(errorCallback) errorCallback();
-		});
-		return;
-	};
-
-	/**
-	 * Callback function when current channel changed successfully.
-	 * 
-	 */
-	TVDisplaySuccessCB = function() {
-		// TODO implement constructor logic if needed!
-
-	};
-	TVDisplaySuccessCB.prototype.onSuccess = function(channel) {
-		// TODO: Add your application logic here!
-
-		return;
-	};
-
-	// TODO: does not conform API Spec, but needs to be added!
-	TVDisplayManager.prototype.addEventListener = function(eventname,
-			channelchangeeventhandler, useCapture) {
-		var rpc = webinos.rpcHandler.createRPC(that, "display.addEventListener",
-				arguments);
-
-		rpc.onchannelchangeeventhandler = function(params,
-				successCallback, errorCallback) {
-
-			channelchangeeventhandler(params);
-
-		};
-
-		// register the object as being remotely accessible
-		webinos.rpcHandler.registerCallbackObject(rpc);
-
-		webinos.rpcHandler.executeRPC(rpc);
-		return;
-	};
-
-	/**
-	 * Get a list of all available TV tuners.
-	 * 
-	 */
-	TVTunerManager = function(){};
-
-	/**
-	 * Get a list of all available TV tuners.
-	 * 
-	 */
-	TVTunerManager.prototype.getTVSources = function(successCallback,
-			errorCallback) {
-		var rpc = webinos.rpcHandler.createRPC(that, "tuner.getTVSources", arguments);
-		webinos.rpcHandler.executeRPC(rpc, function(params) {
-			successCallback(params);
-		}, function(error) {
-		});
-		return;
-	};
-
-	/**
-	 * Callback for found TV tuners.
-	 * 
-	 */
-	TVSuccessCB = function() {
-		// TODO implement constructor logic if needed!
-
-	};
-
-	/**
-	 * Callback that is called with the found TV sources.
-	 * 
-	 */
-	TVSuccessCB.prototype.onSuccess = function(sources) {
-		// TODO: Add your application logic here!
-
-		return;
-	};
-
-	/**
-	 * Error callback for errors when trying to get TV tuners.
-	 * 
-	 */
-	TVErrorCB = function() {
-		// TODO implement constructor logic if needed!
-
-	};
-
-	/**
-	 * Callback that is called when an error occures while getting TV sources
-	 * 
-	 */
-	TVErrorCB.prototype.onError = function(error) {
-		// TODO: Add your application logic here!
-
-		return;
-	};
-
-	/**
-	 * Error codes.
-	 * 
-	 */
-	TVError = function() {
-		// TODO implement constructor logic if needed!
-
-		// TODO initialize attributes
-
-		this.code = Number;
-	};
-
-	/**
-	 * An unknown error.
-	 * 
-	 */
-	TVError.prototype.UNKNOWN_ERROR = 0;
-
-	/**
-	 * Invalid input channel.
-	 * 
-	 */
-	TVError.prototype.ILLEGAL_CHANNEL_ERROR = 1;
-
-	/**
-	 * Code.
-	 * 
-	 */
-	TVError.prototype.code = Number;
-
-	/**
-	 * TV source: a list of channels with a name.
-	 * 
-	 */
-	TVSource = function() {
-		// TODO implement constructor logic if needed!
-
-		// TODO initialize attributes
-
-		this.name = String;
-		this.channelList = Number;
-	};
-
-	/**
-	 * The name of the source.
-	 * 
-	 * 
-	 * The name should describe the kind of tuner this source represents, e.g.
-	 * DVB-T, DVB-C.
-	 * 
-	 */
-	TVSource.prototype.name = String;
-
-	/**
-	 * List of channels for this source.
-	 * 
-	 */
-	TVSource.prototype.channelList = Number;
-
-	/**
-	 * The Channel Interface
-	 * 
-	 * 
-	 * Channel objects provide access to the video stream.
-	 * 
-	 */
-	Channel = function() {
-		this.channelType = Number;
-		this.name = String;
-		this.longName = String;
-		this.stream = "new Stream()";
-		this.tvsource = new TVSource();
-	};
-
-	/**
-	 * Indicates a TV channel.
-	 * 
-	 */
-	Channel.prototype.TYPE_TV = 0;
-
-	/**
-	 * Indicates a radio channel.
-	 * 
-	 */
-	Channel.prototype.TYPE_RADIO = 1;
-
-	/**
-	 * The type of channel.
-	 * 
-	 * 
-	 * Type of channel is defined by one of the TYPE_* constants defined above.
-	 * 
-	 */
-	Channel.prototype.channelType = Number;
-
-	/**
-	 * The name of the channel.
-	 * 
-	 * 
-	 * The name of the channel will typically be the call sign of the station.
-	 * 
-	 */
-	Channel.prototype.name = String;
-
-	/**
-	 * The long name of the channel.
-	 * 
-	 * 
-	 * The long name of the channel if transmitted. Can be undefined if not
-	 * available.
-	 * 
-	 */
-	Channel.prototype.longName = String;
-
-	/**
-	 * The video stream.
-	 * 
-	 * 
-	 * This stream is a represents a valid source for a HTMLVideoElement.
-	 * 
-	 */
-	Channel.prototype.stream = null;
-
-	/**
-	 * The source this channels belongs too.
-	 * 
-	 */
-	Channel.prototype.tvsource = null;
-
-	/**
-	 * Event that fires when the channel is changed.
-	 * 
-	 * 
-	 * Changing channels could also be invoked by other parties, e.g. a hardware
-	 * remote control. A ChannelChange event will be fire in these cases which
-	 * provides the channel that was switched to.
-	 * 
-	 */
-	ChannelChangeEvent = function() {
-		// TODO implement constructor logic if needed!
-
-		// TODO initialize attributes
-
-		this.channel = new Channel();
-	};
-
-	/**
-	 * The new channel.
-	 * 
-	 */
-	ChannelChangeEvent.prototype.channel = null;
-
-	/**
-	 * Initializes a new channel change event.
-	 * 
-	 */
-	ChannelChangeEvent.prototype.initChannelChangeEvent = function(type,
-			bubbles, cancelable, channel) {
-		// TODO: Add your application logic here!
-
-		return;
-	};
-	
-	/**
-	 * Access to tuner and display managers.
-	 * 
-	 */
-	TVManager = function(obj) {
+	WebNotificationModule = function(obj) {
 		this.base = WebinosService;
 		this.base(obj);
-		that = this;
-		
-		this.display = new TVDisplayManager(obj);
-		this.tuner = new TVTunerManager(obj);
+
 	};
-	TVManager.prototype = new WebinosService;
-
-
-}());
-/*******************************************************************************
+	
+	WebNotificationModule.prototype = new WebinosService;
+	
+	/**
+	 * To bind the service.
+	 * @param bindCB BindCallback object.
+	 */
+	WebNotificationModule.prototype.bindService = function (bindCB, serviceId) {
+		// actually there should be an auth check here or whatever, but we just always bind
+		var that = this;
+		this.WebNotification = function (title, options){
+			console.log(that.id);
+			var rpc = webinos.rpcHandler.createRPC(that, "notify", [title, options]);
+			webinos.rpcHandler.executeRPC(rpc,
+					function (params){
+						//on success
+					 	if(params == 'onClick' && that.onClick){
+					 		that.onClick(params);
+					 	}
+					 	else if(params == 'onShow' && that.onShow){
+					 		that.onShow(params);
+					 	}
+					 	else if(params == 'onClose' && that.onClose){
+					 		that.onClose(params);
+					 	}
+					},
+					function (error){
+						if(that.onError){
+					 		that.onError(error);
+					 	}
+					}
+			);
+		}
+		if (typeof bindCB.onBind === 'function') {
+			bindCB.onBind(this);
+		};
+	}
+	
+	
+}());/*******************************************************************************
 *  Code contributed to the webinos project
 * 
 * Licensed under the Apache License, Version 2.0 (the "License");

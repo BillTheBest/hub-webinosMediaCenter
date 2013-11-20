@@ -3,6 +3,57 @@ var IScroll = require('iscroll');
 var _ = require('../util/objectscore.coffee');
 var address = require('../util/address.coffee');
 
+//Notifications Add-on
+var $ = require('jquery');
+var growl = require('jquery.growl');
+var webinos = require('webinos');
+
+  var lightSensor, lightValue={};
+  var initLightSensor = function() {
+
+    // discover app2app service ...
+    webinos.discovery.findServices(new ServiceType("http://webinos.org/api/sensors/light"), {
+      onFound: function (service) {
+                  service.bindService({
+                    onBind: function () {
+                      if(service.displayName.toLowerCase().indexOf("fake")!=-1) return;
+                      $.growl.notice({title: "Sensor found!", message: "A light sensor is now available:<br>"+service.displayName});
+                      service.configureSensor({timeout: 120, rate: 1000, eventFireMode: "fixedinterval"}, 
+                          function(){
+                              //configuration of sensor went fine
+                              var onSensorEvent = function(e){
+                                 if(lightValue[service.displayName]){
+                                  if(lightValue[service.displayName]<e.sensorValues[0]*0.8){
+                                        $.growl.notice({title:"It got bright!", message: "At sensor: "+service.displayName + ", value: "+e.sensorValues[0]});
+                                        $("video").css("-webkit-filter","brightness(100%)");
+                                  }
+                                  if(lightValue[service.displayName]>e.sensorValues[0]*1.2){
+                                        $.growl.notice({title:"It got dark!", message: "At sensor: "+service.displayName + ", value: "+e.sensorValues[0]});
+                                        $("video").css("-webkit-filter","brightness(50%)");
+                                  }
+                                 }
+                                  lightValue[service.displayName] = e.sensorValues[0];
+                                  ///$.growl.notice("Registered. Current value : " + e.sensorValues[0]);
+                              };
+                              service.addEventListener('sensor', onSensorEvent , false);
+                          },
+                          function (){
+                              //an error during configuring sensor occured
+                          }
+                      );
+                      lightSensor = service;
+                    }
+                  });
+      },
+      onError: function (error) {
+                  $.growl.error({title:"Sensor discovert failed.",message:"Error finding service: " + error.message + " (#" + error.code + ")"});
+      }
+    });
+
+  };
+
+  initLightSensor();
+
 
 function SelectDeviceListView(items, selection) {
   var self = this;
@@ -213,8 +264,10 @@ function MainMenuView(viewModel){
       $('.webinoslogo').fadeIn(1000);
       $('.fokuslogo').fadeOut(1000);
     }
-    $('.logoArea').height(height*0.05);
-    $('.logoArea').width(height*0.05);
+    if(typeof height != "undefined") {
+      $('.logoArea').height(height*0.05);
+      $('.logoArea').width(height*0.05);
+    }
   }, 4000);
 
   function calcSize(){

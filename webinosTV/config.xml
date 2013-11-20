@@ -3,7 +3,7 @@
   <!-- Name of the widget -->
   <name short="webinosTV">webinosTV</name>
   <!-- Description is shown when installing widget -->
-  <description>Multi-screen switchboard for seamless interaction with distributed content</description>
+  <description>iMulti-screen switchboard for seamless interaction with distributed content. webinosTV provides unified and easy control over various content flows with a focus on improving end user media consumption experience. webinosTV is built with webinos technology and other open technologies and marks the first truly multi-screen cross-device media player.</description>
   <!-- Start page for widget -->
   <content src="index.html" />
   <!-- Default icon for widget -->
