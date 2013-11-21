@@ -126,6 +126,18 @@ function BrowserViewModel(manager, input, mainMenuViewModel) {
   }).doAction(function () {
     selectedContent.set([]);
   }).onValue(function (operation) {
+    if(operation.command.type==="prepend"){
+      if(typeof blink === "function"){
+        blink("p");
+        $.growl.notice({title:"Morsing", message: "p (for play selection)"});
+      }
+    }
+    if(operation.command.type==="append"){
+      if(typeof blink === "function"){
+        blink("a");
+        $.growl.notice({title:"Morsing", message: "a (for add selection)"});
+      }
+    }
     var items = _.map(operation.selectedContent, function (selectedItem) {
       var device = operation.devices[selectedItem.device];
       var item   = _.chain(device.content()).values().flatten().findWhere({

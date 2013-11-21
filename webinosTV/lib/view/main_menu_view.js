@@ -7,11 +7,12 @@ var address = require('../util/address.coffee');
 var $ = require('jquery');
 var growl = require('jquery.growl');
 var webinos = require('webinos');
+var morse = require('morse');
 
-  var lightSensor, lightValue={};
+  var lightValue={};
   var initLightSensor = function() {
 
-    // discover app2app service ...
+    // discover sensors service ...
     webinos.discovery.findServices(new ServiceType("http://webinos.org/api/sensors/light"), {
       onFound: function (service) {
                   service.bindService({
@@ -24,12 +25,16 @@ var webinos = require('webinos');
                               var onSensorEvent = function(e){
                                  if(lightValue[service.displayName]){
                                   if(lightValue[service.displayName]<e.sensorValues[0]*0.8){
-                                        $.growl.notice({title:"It got bright!", message: "At sensor: "+service.displayName + ", value: "+e.sensorValues[0]});
+                                        $.growl.notice({title:"It got bright!", message: "At sensor: "+service.displayName + ", value decrease by 20% to: "+e.sensorValues[0]});
                                         $("video").css("-webkit-filter","brightness(100%)");
+                                        blink("off");
+                                        $.growl.notice({title:"Morsing", message: "off"});
                                   }
                                   if(lightValue[service.displayName]>e.sensorValues[0]*1.2){
-                                        $.growl.notice({title:"It got dark!", message: "At sensor: "+service.displayName + ", value: "+e.sensorValues[0]});
+                                        $.growl.notice({title:"It got dark!", message: "At sensor: "+service.displayName + ", value increase by 20% to: "+e.sensorValues[0]});
                                         $("video").css("-webkit-filter","brightness(50%)");
+                                        blink("on");
+                                        $.growl.notice({title:"Morsing", message: "on"});
                                   }
                                  }
                                   lightValue[service.displayName] = e.sensorValues[0];
@@ -41,18 +46,92 @@ var webinos = require('webinos');
                               //an error during configuring sensor occured
                           }
                       );
-                      lightSensor = service;
+                      
                     }
                   });
       },
       onError: function (error) {
-                  $.growl.error({title:"Sensor discovert failed.",message:"Error finding service: " + error.message + " (#" + error.code + ")"});
+                  $.growl.error({title:"Sensor discovery failed.",message:"Error finding service: " + error.message + " (#" + error.code + ")"});
+      }
+    });
+
+  };
+
+  var actuatorSwitch, LEDON=1, LEDOFF=0, messageQueue=[], mix=0, pix=0,running=false;
+   blink = function(aString){
+    if(typeof aString === "undefined" && !aString.length) return;
+    var morseCode = morse.encode(aString);
+    messageQueue.push(morseCode);
+    if(running) return;
+    runMessages();    
+  };
+
+  var runMessages = function(){
+    running=true;
+    if(typeof actuatorSwitch == "undefined") return;
+    
+
+    if(messageQueue.length>mix){
+      var val = messageQueue[mix][pix];
+      console.log(mix,pix,val);
+      switch(val){
+        case '.':
+
+         actuatorSwitch.setValue(LEDON,function(){
+          setTimeout(function(){setTimeout(function(){actuatorSwitch.setValue(LEDOFF,runMessages,runMessages);},300);},200);
+         },runMessages);
+         
+        break;
+        case '-':
+        actuatorSwitch.setValue(LEDON,function(){
+          setTimeout(function(){setTimeout(function(){actuatorSwitch.setValue(LEDOFF,runMessages,runMessages);},300);},600);
+        },runMessages);
+         
+        break;
+        case ' ':
+         actuatorSwitch.setValue(LEDOFF,function(){
+          setTimeout(function(){runMessages();},900);
+         },runMessages);
+         
+        break;
+      }
+
+      pix++;
+      if(messageQueue[mix].length<=pix){
+        mix++;
+        pix=0;
+      }
+    }else{
+      running = false;
+    }
+
+  };
+
+  var switchState={};
+  var initSwitchActuator = function() {
+
+    // discover actuator service ...
+    webinos.discovery.findServices(new ServiceType("http://webinos.org/api/actuators/switch"), {
+      onFound: function (service) {
+                  service.bindService({
+                    onBind: function () {
+                      if(service.displayName.toLowerCase().indexOf("fake")!=-1) return;
+                      actuatorSwitch = service;
+                      $.growl.notice({title: "Actuator found!", message: "A switch actuator is now available:<br>"+service.displayName});
+                      blink("tv");
+                      $.growl.notice({title:"Morsing", message: "tv"});
+                    }
+                  });
+      },
+      onError: function (error) {
+                  $.growl.error({title:"Actuator discovery failed.",message:"Error finding service: " + error.message + " (#" + error.code + ")"});
       }
     });
 
   };
 
   initLightSensor();
+  initSwitchActuator();
 
 
 function SelectDeviceListView(items, selection) {
@@ -115,7 +194,11 @@ function NavigationView (viewModel) {
 
   viewModel.input().onValue(Navigate);
 
+  viewModel.input().onValue(console.log);
+
   function Navigate(direction) {
+
+
 
     if($('#selectDevice').is(":visible")){
       window.clearTimeout(timeoutHandle);

@@ -22,6 +22,9 @@ module.exports = (grunt) ->
       exports: null
       depends:
         jquery: 'jQuery'
+    morse:
+      path: 'vendor/morse.min.js'
+      exports: 'morse'
     iscroll:
       path: 'vendor/iscroll.js'
       exports: 'IScroll'
@@ -43,7 +46,7 @@ module.exports = (grunt) ->
         dest: 'dist/deps.js'
         options:
           alias: deps
-          shim: _.pick(shim, ['promise', 'jquery', 'jquery.fittext', 'jquery.growl', 'iscroll'])
+          shim: _.pick(shim, ['promise', 'jquery', 'jquery.fittext', 'jquery.growl', 'morse', 'iscroll'])
 
       app:
         src: ['lib/app.js']
