@@ -57,12 +57,21 @@ var morse = require('morse');
 
   };
 
-  var actuatorSwitch, LEDON=1, LEDOFF=0, messageQueue=[], mix=0, pix=0,running=false;
+  var actuatorSwitch, LEDON=1, LEDOFF=0, messageQueue=[], mix=0, pix=0,running=false, timeout=false;
    blink = function(aString){
     if(typeof aString === "undefined" && !aString.length) return;
     var morseCode = morse.encode(aString);
     messageQueue.push(morseCode);
-    if(running) return;
+    if(running) {
+      if(timeout) clearTimeout(timeout);
+      timeout=false;
+      mix++;
+      pix=0;
+      actuatorSwitch.setValue(LEDON,function(){
+        setTimeout(runMessages,1000);
+        return;
+      },Function);
+    };
     runMessages();    
   };
 
@@ -78,19 +87,19 @@ var morse = require('morse');
         case '.':
 
          actuatorSwitch.setValue(LEDON,function(){
-          setTimeout(function(){setTimeout(function(){actuatorSwitch.setValue(LEDOFF,runMessages,runMessages);},300);},200);
+          timeout=setTimeout(function(){timeout=setTimeout(function(){actuatorSwitch.setValue(LEDOFF,runMessages,runMessages);},300);},200);
          },runMessages);
          
         break;
         case '-':
         actuatorSwitch.setValue(LEDON,function(){
-          setTimeout(function(){setTimeout(function(){actuatorSwitch.setValue(LEDOFF,runMessages,runMessages);},300);},600);
+          timeout=setTimeout(function(){timeout=setTimeout(function(){actuatorSwitch.setValue(LEDOFF,runMessages,runMessages);},300);},600);
         },runMessages);
          
         break;
         case ' ':
          actuatorSwitch.setValue(LEDOFF,function(){
-          setTimeout(function(){runMessages();},900);
+          timeout=setTimeout(function(){runMessages();},900);
          },runMessages);
          
         break;
@@ -125,6 +134,7 @@ var morse = require('morse');
       },
       onError: function (error) {
                   $.growl.error({title:"Actuator discovery failed.",message:"Error finding service: " + error.message + " (#" + error.code + ")"});
+                  actuatorSwitch = {setValue:function(v,cb){console.log(v?"on":"off");cb()}};
       }
     });
 
