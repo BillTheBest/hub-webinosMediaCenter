@@ -27,12 +27,14 @@ var morse = require('morse');
                                   if(lightValue[service.displayName]<e.sensorValues[0]*0.8){
                                         $.growl.notice({title:"It got bright!", message: "At sensor: "+service.displayName + ", value decrease by 20% to: "+e.sensorValues[0]});
                                         $("video").css("-webkit-filter","brightness(100%)");
+                                        $(".imageContainer").css("-webkit-filter","brightness(100%)");
                                         blink("off");
                                         $.growl.notice({title:"Morsing", message: "off"});
                                   }
                                   if(lightValue[service.displayName]>e.sensorValues[0]*1.2){
                                         $.growl.notice({title:"It got dark!", message: "At sensor: "+service.displayName + ", value increase by 20% to: "+e.sensorValues[0]});
                                         $("video").css("-webkit-filter","brightness(50%)");
+                                        $(".imageContainer").css("-webkit-filter","brightness(50%)");
                                         blink("on");
                                         $.growl.notice({title:"Morsing", message: "on"});
                                   }
@@ -57,18 +59,20 @@ var morse = require('morse');
 
   };
 
-  var actuatorSwitch, LEDON=1, LEDOFF=0, messageQueue=[], mix=0, pix=0,running=false, timeout=false;
+  var actuatorSwitch, LEDON=1, LEDOFF=0, messageQueue=[], mix=0, pix=0,running=false, timeout=false, timeout2=false;
    blink = function(aString){
     if(typeof aString === "undefined" && !aString.length) return;
     var morseCode = morse.encode(aString);
     messageQueue.push(morseCode);
     if(running) {
+      //cancel
       if(timeout) clearTimeout(timeout);
+      if(timeout2) clearTimeout(timeout2);
       timeout=false;
       mix++;
       pix=0;
-      actuatorSwitch.setValue(LEDON,function(){
-        setTimeout(runMessages,1000);
+      actuatorSwitch.setValue(LEDOFF,function(){
+        timeout2=setTimeout(runMessages,1000);
         return;
       },Function);
     };
@@ -82,7 +86,7 @@ var morse = require('morse');
 
     if(messageQueue.length>mix){
       var val = messageQueue[mix][pix];
-      console.log(mix,pix,val);
+      //console.log(mix,pix,val);
       switch(val){
         case '.':
 
@@ -134,7 +138,7 @@ var morse = require('morse');
       },
       onError: function (error) {
                   $.growl.error({title:"Actuator discovery failed.",message:"Error finding service: " + error.message + " (#" + error.code + ")"});
-                  actuatorSwitch = {setValue:function(v,cb){console.log(v?"on":"off");cb()}};
+                  //actuatorSwitch = {setValue:function(v,cb){console.log(v?"on":"off");cb()}};
       }
     });
 
