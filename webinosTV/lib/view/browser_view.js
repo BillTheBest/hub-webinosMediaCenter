@@ -101,7 +101,7 @@ function ListView(items, selection, list, wrapper, fadeout) {
 util.inherits(SourceListView, ListView);
 function SourceListView(viewModel) {
   this.htmlify = function (device) {
-    return '<li class="nav_sl" style="height:'+buttonHeight+'px"><img src="images/'+(device.type()?device.type():'all_devices')+'.svg"><p>' + address.friendlyName(device.address()) + '</p></li>';
+    return '<li class="nav_sl" style="height:'+buttonHeight+'px"><img src="images/'+((device.type()&& device.type() != "Undefined")?device.type():'unknown')+'.svg"><p>' + address.friendlyName(device.address()) + '</p></li>';
   };
 
   this.identify = function (device) {
@@ -156,12 +156,13 @@ function ContentListView(viewModel) {
 util.inherits(TargetListView, ListView);
 function TargetListView(viewModel) {
   this.htmlify = function (value) {
-    var icon = 'all_devices';
+    var icon = 'unknown';
     if (value.type === 'upnp') {
       icon = 'tv';
-    } else if (value.device.type()) {
+    } else if (value.device.type() && value.device.type() != "Undefined") {
       icon = value.device.type();
     }
+
     return '<li class="nav_tl" style="height:'+buttonHeight+'px"><img src="images/'+icon+'.svg"><p>' + friendlyName(value) + '</p></li>';
   };
 
