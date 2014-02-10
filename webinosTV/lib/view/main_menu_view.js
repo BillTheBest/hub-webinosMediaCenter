@@ -202,6 +202,12 @@ function MainMenuView(viewModel){
     }, 0);
   });
 
+  $('#startscreen').on('click', function() {
+    setTimeout(function () {
+      openMainmenu();
+    }, 0);
+  })
+
   closeSelectDevice();
 
   $('.webinoslogo').fadeOut();
