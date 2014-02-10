@@ -18,6 +18,7 @@ function ControlsViewModel(manager, peer, mainMenuViewModel) {
 
   var encrypted = state.map(function (state) {
     if (state === '<no-state>') return false;
+    if(typeof state.index === "undefined" || typeof state.queue === "undefined") return false;
     return state.playback.current && state.index < state.queue.length && payment.encrypted(state.queue[state.index].item.title);
   });
 
