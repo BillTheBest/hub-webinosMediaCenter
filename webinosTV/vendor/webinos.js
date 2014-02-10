@@ -71,8 +71,8 @@
 	Registry.prototype.registerObject = function (callback) {
 		_registerObject.call(this, callback);
 
-		if (this.parent && this.parent.registerServicesWithPzh) {
-			this.parent.registerServicesWithPzh();
+		if (this.parent && this.parent.synchronizationStart) {
+			this.parent.synchronizationStart();
 		}
 		return callback.id;
 	};
@@ -100,8 +100,8 @@
 			delete this.objects[callback.api];
 		}
 
-		if (this.parent && this.parent.registerServicesWithPzh) {
-			this.parent.registerServicesWithPzh();
+		if (this.parent && this.parent.synchronizationStart) {
+			this.parent.synchronizationStart();
 		}
 	};
 
@@ -190,7 +190,25 @@
 (function () {
 	if (typeof webinos === 'undefined')
 		webinos = {};
-	var logger = console;
+
+	var logger;
+	if(typeof module === 'undefined' && (typeof webinos === 'undefined' || typeof webinos.logging != 'function' || !webinos.logging())) {
+		logger = {
+			log: function(){},
+			info: function(){},
+			warn: function(){},
+			error: function(){},
+			debug: function(){}
+		};
+	} else {
+		logger = {
+			log: console.log.bind(console),
+			info: console.log.bind(console),
+			warn: console.log.bind(console),
+			error: console.log.bind(console),
+			debug: console.log.bind(console)
+		};
+	}
 
 	var idCount = 0;
 
@@ -1142,6 +1160,12 @@
 if (typeof exports === "undefined") exports = window;
 if (typeof exports.webinos === "undefined") exports.webinos = {};
 if (typeof exports.webinos.session === "undefined") exports.webinos.session = {};
+if (typeof exports.webinos.logging === "undefined") exports.webinos.logging = function(enable){
+    if(typeof enable === "boolean") {
+        enable ? localStorage.setItem("verboseLoggingEnabled","true") : localStorage.removeItem("verboseLoggingEnabled");
+    }
+    return (typeof localStorage != "undefined" && localStorage && "true" === localStorage.getItem("verboseLoggingEnabled"));
+};
 
 if (typeof _webinos === "undefined") {
     _webinos = {};
@@ -1221,12 +1245,14 @@ if (typeof _webinos === "undefined") {
             "resp_to":webinos.session.getSessionId(),
             "payload":rpc};
         if(rpc.register !== "undefined" && rpc.register === true) {
-            console.log(rpc);
+            if(webinos.logging()) {
+                console.log(rpc);
+            }
             channel.send(JSON.stringify(rpc));
         }else {
-            console.log("creating callback");
-            console.log("WebSocket Client: Message Sent");
-            console.log(message);
+            if(webinos.logging()) {
+                console.log("WebSocket Client: Message Sent", message);
+            }
             channel.send(JSON.stringify(message));
         }
     };
@@ -1361,6 +1387,20 @@ if (typeof _webinos === "undefined") {
 (function () {
     var channel = null;
 
+    var _console = function(type,args){
+        if(typeof module === 'undefined' && type === "log" && (typeof webinos === 'undefined' || typeof webinos.logging != 'function' || !webinos.logging())) {
+            return;
+        }
+        (console[type]).apply(console,args);
+    }
+    var logger = {
+        log:function(){_console("log",arguments)},
+        info:function(){_console("info",arguments)},
+        warn:function(){_console("warn",arguments)},
+        error:function(){_console("error",arguments)},
+        debug:function(){_console("debug",arguments)}
+    };
+
     /**
      * Creates the socket communication channel
      * for a locally hosted websocket server at port 8080
@@ -1387,7 +1427,7 @@ if (typeof _webinos === "undefined") {
             hostname = window.location.hostname;
             if (hostname == "") isWebServer = false; // We are inside a local file.
             if(hostname !== "localhost" && hostname !=="127.0.0.1") {
-              console.log("websocket connection is only possible with address localhost or 127.0.0.1. Please change to localhost or 127.0.0.1 " +
+            logger.log("websocket connection is only possible with address localhost or 127.0.0.1. Please change to localhost or 127.0.0.1 " +
                   "to connect to the PZP");
             }
 
@@ -1403,16 +1443,16 @@ if (typeof _webinos === "undefined") {
                         var resp = JSON.parse (xmlhttp.responseText);
                         port = resp.websocketPort;
                     } else { // We are not inside a pzp or widget server.
-                        console.log ("CAUTION: webinosConfig.json failed to load. Are you on a pzp/widget server or older version of webinos? Trying the guess  communication channel's port.");
+                        logger.log ("CAUTION: webinosConfig.json failed to load. Are you on a pzp/widget server or older version of webinos? Trying the guess  communication channel's port.");
                         port = port + 1; // Guessing that the port is +1 to the webserver's. This was the way to detect it on old versions of pzp.
                     }
                 } catch (err) { // XMLHttpRequest is not supported or something went wrong with it.
-                    console.log ("CAUTION: The pzp communication host and port are unknown. Trying the default communication channel.");
+                    logger.log ("CAUTION: The pzp communication host and port are unknown. Trying the default communication channel.");
                     useDefaultHost = true;
                     useDefaultPort = true;
                 }
             } else { // Let's try the default pzp hostname and port.
-                console.log ("CAUTION: No web server detected. Using a local file? Trying the default communication channel.");
+                logger.log ("CAUTION: No web server detected. Using a local file? Trying the default communication channel.");
                 useDefaultHost = true;
                 useDefaultPort = true;
             }
@@ -1435,7 +1475,7 @@ if (typeof _webinos === "undefined") {
         webinos.session.setPzpPort (port);
 
         channel.onmessage = function (ev) {
-            console.log ('WebSocket Client: Message Received : ' + JSON.stringify (ev.data));
+            logger.log ('WebSocket Client: Message Received : ' + JSON.stringify (ev.data));
             var data = JSON.parse (ev.data);
             if (data.type === "prop") {
                 webinos.session.handleMsg (data);
@@ -1451,7 +1491,7 @@ if (typeof _webinos === "undefined") {
           webinos.session.message_send({type: 'prop', payload: {status:'registerBrowser', value: url, origin: origin}});
         };
         channel.onerror = function(evt) {
-          console.log("WebSocket error" + JSON.stringify(evt));
+          console.error("WebSocket error", evt);
         };
     }
 
@@ -1530,7 +1570,6 @@ if (typeof _webinos === "undefined") {
     var typeMap = {};
 
     var registerServiceConstructor = function(serviceType, Constructor) {
-        console.log("discovery: registered constructor for", serviceType);
         typeMap[serviceType] = Constructor;
     };
     if (typeof _webinos !== 'undefined') _webinos.registerServiceConstructor = registerServiceConstructor;
@@ -1573,32 +1612,33 @@ if (typeof _webinos === "undefined") {
             var findOp;
 
             var typeMapCompatible = {};
-            if (typeof ActuatorModule !== 'undefined') typeMapCompatible['http://webinos.org/api/actuators'] = ActuatorModule;
-            if (typeof App2AppModule !== 'undefined') typeMapCompatible['http://webinos.org/api/app2app'] = App2AppModule;
-            if (typeof AppLauncherModule !== 'undefined') typeMapCompatible['http://webinos.org/api/applauncher'] = AppLauncherModule;
+            //if (typeof ActuatorModule !== 'undefined') typeMapCompatible['http://webinos.org/api/actuators'] = ActuatorModule;
+            //if (typeof App2AppModule !== 'undefined') typeMapCompatible['http://webinos.org/api/app2app'] = App2AppModule;
+            //if (typeof AppLauncherModule !== 'undefined') typeMapCompatible['http://webinos.org/api/applauncher'] = AppLauncherModule;
             if (typeof AuthenticationModule !== 'undefined') typeMapCompatible['http://webinos.org/api/authentication'] = AuthenticationModule;
             if (typeof webinos.Context !== 'undefined') typeMapCompatible['http://webinos.org/api/context'] = webinos.Context;
             if (typeof corePZinformationModule !== 'undefined') typeMapCompatible['http://webinos.org/api/corePZinformation'] = corePZinformationModule;
-            if (typeof DeviceStatusManager !== 'undefined') typeMapCompatible['http://webinos.org/api/devicestatus'] = DeviceStatusManager;
-            if (typeof DiscoveryModule !== 'undefined') typeMapCompatible['http://webinos.org/api/discovery'] = DiscoveryModule;
-            if (typeof EventsModule !== 'undefined') typeMapCompatible['http://webinos.org/api/events'] = EventsModule;
-            if (webinos.file && webinos.file.Service) typeMapCompatible['http://webinos.org/api/file'] = webinos.file.Service;
-            if (typeof MediaContentModule !== 'undefined') typeMapCompatible['http://webinos.org/api/mediacontent'] = MediaContentModule;
-            if (typeof NfcModule !== 'undefined') typeMapCompatible['http://webinos.org/api/nfc'] = NfcModule;
-            if (typeof WebNotificationModule !== 'undefined') typeMapCompatible['http://webinos.org/api/notifications'] = WebNotificationModule;
-            if (typeof WebinosDeviceOrientation !== 'undefined') typeMapCompatible['http://webinos.org/api/deviceorientation'] = WebinosDeviceOrientation;
-            if (typeof PaymentModule !== 'undefined') typeMapCompatible['http://webinos.org/api/payment'] = PaymentModule;
-            if (typeof Sensor !== 'undefined') typeMapCompatible['http://webinos.org/api/sensors'] = Sensor;
-            if (typeof TestModule !== 'undefined') typeMap['http://webinos.org/api/test'] = TestModule;
-            if (typeof TVManager !== 'undefined') typeMapCompatible['http://webinos.org/api/tv'] = TVManager;
-            if (typeof Vehicle !== 'undefined') typeMapCompatible['http://webinos.org/api/vehicle'] = Vehicle;
-            if (typeof WebinosGeolocation !== 'undefined') typeMapCompatible['http://webinos.org/api/w3c/geolocation'] = WebinosGeolocation;
-            if (typeof WebinosGeolocation !== 'undefined') typeMapCompatible['http://www.w3.org/ns/api-perms/geolocation'] = WebinosGeolocation; // old feature URI for compatibility
-            if (typeof Contacts !== 'undefined') typeMapCompatible['http://www.w3.org/ns/api-perms/contacts'] = Contacts;
-            if (typeof ZoneNotificationModule !== 'undefined') typeMapCompatible['http://webinos.org/api/zonenotifications'] = ZoneNotificationModule;
-//            if (typeof DiscoveryModule !== 'undefined') typeMapCompatible['http://webinos.org/manager/discovery/bluetooth'] = DiscoveryModule;
+            //if (typeof DeviceStatusManager !== 'undefined') typeMapCompatible['http://webinos.org/api/devicestatus'] = DeviceStatusManager;
+            //if (typeof DiscoveryModule !== 'undefined') typeMapCompatible['http://webinos.org/api/discovery'] = DiscoveryModule;
+            //if (typeof EventsModule !== 'undefined') typeMapCompatible['http://webinos.org/api/events'] = EventsModule;
+            //if (webinos.file && webinos.file.Service) typeMapCompatible['http://webinos.org/api/file'] = webinos.file.Service;
+            //if (typeof MediaContentModule !== 'undefined') typeMapCompatible['http://webinos.org/api/mediacontent'] = MediaContentModule;
+            //if (typeof NfcModule !== 'undefined') typeMapCompatible['http://webinos.org/api/nfc'] = NfcModule;
+            //if (typeof WebNotificationModule !== 'undefined') typeMapCompatible['http://webinos.org/api/notifications'] = WebNotificationModule;
+            //if (typeof WebinosDeviceOrientation !== 'undefined') typeMapCompatible['http://webinos.org/api/deviceorientation'] = WebinosDeviceOrientation;
+            //if (typeof PaymentModule !== 'undefined') typeMapCompatible['http://webinos.org/api/payment'] = PaymentModule;
+            //if (typeof Sensor !== 'undefined') typeMapCompatible['http://webinos.org/api/sensors'] = Sensor;
+            //if (typeof TestModule !== 'undefined') typeMap['http://webinos.org/api/test'] = TestModule;
+            //if (typeof TVManager !== 'undefined') typeMapCompatible['http://webinos.org/api/tv'] = TVManager;
+            //if (typeof Vehicle !== 'undefined') typeMapCompatible['http://webinos.org/api/vehicle'] = Vehicle;
+            //if (typeof WebinosGeolocation !== 'undefined') typeMapCompatible['http://webinos.org/api/w3c/geolocation'] = WebinosGeolocation;
+            //if (typeof WebinosGeolocation !== 'undefined') typeMapCompatible['http://www.w3.org/ns/api-perms/geolocation'] = WebinosGeolocation; // old feature URI for compatibility
+			// We use http://webinos.org/api/contacts instead of the w3c one... 
+            //if (typeof Contacts !== 'undefined') typeMapCompatible['http://www.w3.org/ns/api-perms/contacts'] = Contacts;
+            //if (typeof ZoneNotificationModule !== 'undefined') typeMapCompatible['http://webinos.org/api/zonenotifications'] = ZoneNotificationModule;
+            //if (typeof DiscoveryModule !== 'undefined') typeMapCompatible['http://webinos.org/manager/discovery/bluetooth'] = DiscoveryModule;
             if (typeof oAuthModule !== 'undefined') typeMapCompatible['http://webinos.org/mwc/oauth'] = oAuthModule;
-            if (typeof PolicyManagementModule !== 'undefined') typeMapCompatible['http://webinos.org/core/policymanagement'] = PolicyManagementModule;
+            //if (typeof PolicyManagementModule !== 'undefined') typeMapCompatible['http://webinos.org/core/policymanagement'] = PolicyManagementModule;
 
 
             var rpc = rpcHandler.createRPC('ServiceDiscovery', 'findServices',
@@ -1629,7 +1669,6 @@ if (typeof _webinos === "undefined") {
             }, timer);
 
             var success = function (params) {
-                console.log("servicedisco: service found.");
                 var baseServiceObj = params;
 
                 // reduce feature uri to base form, e.g. http://webinos.org/api/sensors
@@ -1644,7 +1683,7 @@ if (typeof _webinos === "undefined") {
                     findOp.found = true;
                     callback.onFound(service);
                 } else {
-                    var serviceErrorMsg = 'Cannot instantiate webinos service.';
+                    var serviceErrorMsg = 'Cannot instantiate webinos service: ' + stype;
                     if (typeof callback.onError === 'function') {
                         callback.onError(new DOMError("onServiceAvailable", serviceErrorMsg));
                     }
@@ -1876,6 +1915,11 @@ if (typeof _webinos === "undefined") {
 			return this._testAttr + " Success";
 		});
 	};
+	// Inherit all functions from WebinosService
+	ZoneNotificationsModule.prototype = Object.create(WebinosService.prototype);
+	// The following allows the 'instanceof' to work properly
+	ZoneNotificationsModule.prototype.constructor = ZoneNotificationsModule;
+	// Register to the service discovery
 	_webinos.registerServiceConstructor("http://webinos.org/api/zonenotifications", ZoneNotificationsModule);
 	
 	/**
@@ -1993,7 +2037,1808 @@ if (typeof _webinos === "undefined") {
 		webinos.rpcHandler.executeRPC(rpc);
 	}
 	
+}());(function() {
+
+WebinosDeviceOrientation = function (obj) {
+	WebinosService.call(this, obj);
+};
+
+	// Inherit all functions from WebinosService
+	WebinosDeviceOrientation.prototype = Object.create(WebinosService.prototype);	
+	// The following allows the 'instanceof' to work properly
+	WebinosDeviceOrientation.prototype.constructor = WebinosDeviceOrientation;
+	// Register to the service discovery
+	_webinos.registerServiceConstructor("http://webinos.org/api/deviceorientation", WebinosDeviceOrientation);
+
+var _referenceMappingDo = new Array();
+var _eventIdsDo = new Array('deviceorientation', 'compassneedscalibration', 'devicemotion');
+
+WebinosDeviceOrientation.prototype.bindService = function (bindCB, serviceId) {
+	// actually there should be an auth check here or whatever, but we just always bind
+	this.addEventListener = addEventListener;
+	this.removeEventListener = removeEventListener;
+	this.dispatchEvent = dispatchEvent;
+	
+    //Objects
+    this.DeviceOrientationEvent = DeviceOrientationEvent;
+    this.DeviceMotionEvent = DeviceMotionEvent;
+    this.Acceleration = Acceleration;
+    this.RotationRate = RotationRate;
+    
+    
+    
+    
+	if (typeof bindCB.onBind === 'function') {
+		bindCB.onBind(this);
+	};
+}
+
+function addEventListener(type, listener, useCapture) {
+    
+    if(_eventIdsDo.indexOf(type) != -1){	
+    
+            console.log("LISTENER"+ listener);
+    
+			var rpc = webinos.rpcHandler.createRPC(this, "addEventListener", [type, listener, useCapture]);
+			_referenceMappingDo.push([rpc.id, listener]);
+
+			console.log('# of references' + _referenceMappingDo.length);	
+			rpc.onEvent = function (orientationEvent) {
+				listener(orientationEvent);
+			};
+            
+			webinos.rpcHandler.registerCallbackObject(rpc);
+			webinos.rpcHandler.executeRPC(rpc);
+		}else{
+			console.log(type + ' not found');	
+		}
+};
+
+//DEFINITION BASE EVENT
+WDomEvent = function(type, target, currentTarget, eventPhase, bubbles, cancelable, timestamp){
+	this.initEvent(type, target, currentTarget, eventPhase, bubbles, cancelable, timestamp);
+}
+
+WDomEvent.prototype.speed = 0;
+
+WDomEvent.prototype.initEvent = function(type, target, currentTarget, eventPhase, bubbles, cancelable, timestamp){
+    this.type = type;
+    this.target = target;
+    this.currentTarget = currentTarget;
+    this.eventPhase = eventPhase;
+    this.bubbles = bubbles;
+    this.cancelable  = cancelable;
+    this.timestamp = timestamp; 
+}
+
+
+DeviceOrientationEvent = function(alpha, beta, gamma){
+	this.initDeviceOrientationEvent(alpha, beta, gamma);
+}
+
+DeviceOrientationEvent.prototype = new WDomEvent();
+DeviceOrientationEvent.prototype.constructor = DeviceOrientationEvent;
+DeviceOrientationEvent.parent = WDomEvent.prototype; // our "super" property
+
+DeviceOrientationEvent.prototype.initDeviceOrientationEvent = function(alpha, beta, gamma){
+	this.alpha = alpha;
+	this.beta = beta;
+	this.gamma = gamma;
+    
+    var d = new Date();
+    var stamp = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), d.getUTCHours(), d.getUTCMinutes(), d.getUTCSeconds());
+    var stamp = stamp + d.getUTCMilliseconds();
+    
+	DeviceOrientationEvent.parent.initEvent.call(this,'deviceorientation', null, null, null, false, false, stamp);
+}
+Acceleration = function(x,y,z){
+	this.x = x;
+	this.y = y;
+	this.z = z;
+}
+RotationRate = function(alpha, beta, gamma){
+	this.alpha = alpha;
+	this.beta = beta;
+	this.gamma = gamma;
+}
+DeviceMotionEvent = function(acceleration, accelerationIncludingGravity, rotationRate, interval){
+	this.initDeviceMotionEvent(acceleration, accelerationIncludingGravity, rotationRate, interval);
+}
+DeviceMotionEvent.prototype = new WDomEvent();
+DeviceMotionEvent.prototype.constructor = DeviceOrientationEvent;
+DeviceMotionEvent.parent = WDomEvent.prototype; // our "super" property
+
+DeviceMotionEvent.prototype.initDeviceMotionEvent = function(acceleration, accelerationIncludingGravity, rotationRate, interval){
+	this.acceleration = acceleration;
+	this.accelerationIncludingGravity = accelerationIncludingGravity;
+	this.rotationRate = rotationRate;
+	this.interval = interval;
+    var d = new Date();
+    var stamp = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), d.getUTCHours(), d.getUTCMinutes(), d.getUTCSeconds());
+    var stamp = stamp + d.getUTCMilliseconds();
+	DeviceOrientationEvent.parent.initEvent.call(this,'devicemotion', null, null, null, false, false, stamp);
+}
+
+function removeEventListener(type, listener, useCapture) {
+        console.log("LISTENER"+ listener);
+        var refToBeDeleted = null;
+		for(var i = 0; i < _referenceMappingDo.length; i++){
+			console.log("Reference" + i + ": " + _referenceMappingDo[i][0]);
+			console.log("Handler" + i + ": " + _referenceMappingDo[i][1]);
+			if(_referenceMappingDo[i][1] == listener){
+					var arguments = new Array();
+					arguments[0] = _referenceMappingDo[i][0];
+					arguments[1] = type;
+					console.log("ListenerObject to be removed ref#" + _referenceMappingDo[i][0]);                                             
+                    var rpc = webinos.rpcHandler.createRPC(this, "removeEventListener", arguments);
+					webinos.rpcHandler.executeRPC(rpc,
+						function(result){
+							callOnSuccess(result);
+						},
+						function(error){
+							callOnError(error);
+						}
+					);
+					break;			
+			}	
+    }
+};
+
+function dispatchEvent(event) {
+    //TODO
+};
+
+})();/*******************************************************************************
+*  Code contributed to the webinos project
+* 
+* Licensed under the Apache License, Version 2.0 (the "License");
+* you may not use this file except in compliance with the License.
+* You may obtain a copy of the License at
+*  
+*     http://www.apache.org/licenses/LICENSE-2.0
+*  
+* Unless required by applicable law or agreed to in writing, software
+* distributed under the License is distributed on an "AS IS" BASIS,
+* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+* See the License for the specific language governing permissions and
+* limitations under the License.
+* 
+* Copyright 2012 André Paul, Fraunhofer FOKUS
+******************************************************************************/
+(function() {
+
+	// Mapping of local listenerId to remote listenerId
+	var registeredListeners = {};
+
+	// Mapping of listenerId to RPC callback obj
+	var registeredRPCCallbacks = {};
+
+	var eventService = null;
+
+	/**
+	 * Webinos Event service constructor (client side).
+	 * @constructor
+	 * @param obj Object containing displayName, api, etc.
+	 */
+	EventsModule = function(obj) {
+		WebinosService.call(this, obj);
+		eventService = this;
+		this.idCount = 0;
+		//this.myAppID = "TestApp" + webinos.messageHandler.getOwnSessionId();
+
+		//TODO, this is the actuall messaging/session app id but should be replaced with the Apps unique ID (config.xml)
+		this.myAppID = webinos.messageHandler.getOwnSessionId();
+		console.log("MyAppID: " + this.myAppID);
+	};
+
+	// Inherit all functions from WebinosService
+	EventsModule.prototype = Object.create(WebinosService.prototype);	
+	// The following allows the 'instanceof' to work properly
+	EventsModule.prototype.constructor = EventsModule;
+	// Register to the service discovery
+	_webinos.registerServiceConstructor("http://webinos.org/api/events", EventsModule);
+
+	/**
+	 * To bind the service.
+	 * @param bindCB BindCallback object.
+	 */
+	EventsModule.prototype.bind = function(bindCB) {
+
+		if (typeof bindCB.onBind === 'function') {
+			bindCB.onBind(this);
+		};
+		
+	};
+
+	/**
+	 * Creates a webinos Event.
+	 * @param type Event type identifier.
+	 * @param addressing References to the sending entity on the behalf of which the application wants to create the event and to the event recipients.
+	 * @param payload Event type-specific data or null (undefined is considered as equivalent to null).
+	 * @param inResponseTo Event that this event is a response to (undefined is considered as equivalent to null).
+	 * @param withTimeStamp Whether to set the generation timestamp (undefined is considered as equivalent to false).
+	 * @param expiryTimeStamp Moment in time past which the event is no more valid or meaningful (undefined is considered as equivalent to null).
+	 * @param addressingSensitive Whether the addressing information is part of the informative content of the event (undefined is considered as equivalent to false).
+	 */
+	EventsModule.prototype.createWebinosEvent = function (type, addressing, payload, inResponseTo, withTimeStamp, expiryTimeStamp, addressingSensitive){
+
+		var anEvent = new WebinosEvent();
+		anEvent.type = type;
+		anEvent.addressing = addressing;
+		anEvent.payload = payload;
+		anEvent.inResponseTo = inResponseTo;
+		anEvent.timeStamp = new Date().getTime();
+		anEvent.expiryTimeStamp = expiryTimeStamp;
+		anEvent.addressingSensitive = addressingSensitive;
+
+
+		//  raises(WebinosEventException);
+		//	returns WebinosEvent
+		return anEvent;
+	};
+
+	/**
+	 * Registers an event listener.
+	 * @param listener The event listener.
+	 * @param type Specific event type or null for any type (undefined is considered as null).
+	 * @param source Specific event source or null for any source (undefined is considered as null).
+	 * @param destination Specific event recipient (whether primary or not) or null for any destination (undefined is considered as null).
+	 * @returns Listener identifier.
+	 */
+	EventsModule.prototype.addWebinosEventListener = function(listener, type, source, destination) {
+
+		if (this.idCount === Number.MAX_VALUE) this.idCount = 0;
+		this.idCount++;
+
+		var listenerId = this.myAppID + ":" + this.idCount;
+
+		var reqParams = {
+			type: type,
+			source: source,
+			destination: destination
+		};
+		if (!source) reqParams.source = this.myAppID;
+
+		var rpc = webinos.rpcHandler.createRPC(this, "addWebinosEventListener",  reqParams);
+
+		rpc.handleEvent = function(params, scb, ecb) {
+			console.log("Received a new WebinosEvent");
+			listener(params.webinosevent);
+			scb();
+		};
+
+		webinos.rpcHandler.registerCallbackObject(rpc);
+
+		// store RPC callback obj to unregister it when removing event listener
+		registeredRPCCallbacks[listenerId] = rpc;
+
+		webinos.rpcHandler.executeRPC(rpc,
+			function(remoteId) {
+				console.log("New WebinosEvent listener registered. Mapping remote ID", remoteId, " localID ", listenerId);
+
+				registeredListeners[listenerId] = remoteId;
+			},
+			function(error) {
+				console.log("Error while registering new WebinosEvent listener");
+			}
+		);
+
+		// raises(WebinosEventException);
+		return listenerId;
+	};
+
+	/**
+     * Unregisters an event listener.
+     * @param listenerId Listener identifier as returned by addWebinosEventListener().
+     */
+	EventsModule.prototype.removeWebinosEventListener = function(listenerId) {
+
+		if (!listenerId || typeof listenerId !== "string") {
+			throw new WebinosEventException(WebinosEventException.INVALID_ARGUMENT_ERROR, "listenerId must be string type");
+		}
+
+		var rpc = webinos.rpcHandler.createRPC(this, "removeWebinosEventListener",  registeredListeners[listenerId]);
+		webinos.rpcHandler.executeRPC(rpc);
+
+		// unregister RPC callback obj
+		webinos.rpcHandler.unregisterCallbackObject(registeredRPCCallbacks[listenerId]);
+		registeredRPCCallbacks[listenerId] = undefined;
+		registeredListeners[listenerId] = undefined;
+
+		// returns void
+	};
+
+	/**
+	 * Webinos event exception constructor.
+	 * @constructor
+	 * @param code Error code.
+	 * @param message Descriptive error message.
+	 */
+	WebinosEventException = function(code, message) {
+		this.code = code;
+		this.message = message;
+	};
+	// constants
+	WebinosEventException.__defineGetter__("INVALID_ARGUMENT_ERROR",  function() {return 1});
+	WebinosEventException.__defineGetter__("PERMISSION_DENIED_ERROR", function() {return 2});
+
+	/**
+	 * Webinos Event constructor.
+	 * @constructor
+	 */
+	WebinosEvent = function() {
+		this.id =  Math.floor(Math.random()*1001);  //DOMString
+		this.type = null;					//DOMString
+		this.addressing = {};  			//WebinosEventAddressing
+		this.addressing.source = eventService.myAppID;
+		this.inResponseTo = null;			//WebinosEvent
+		this.timeStamp = null;				//DOMTimeStamp
+		this.expiryTimeStamp = null;		//DOMTimeStamp
+		this.addressingSensitive = null;	//bool
+		this.forwarding = null;			//WebinosEventAddressing
+		this.forwardingTimeStamp = null;	//DOMTimeStamp
+		this.payload = null;				//DOMString
+	};
+
+	/**
+	 * Sends an event.
+	 * @param callbacks Set of callbacks to monitor sending status (null and undefined are considered as equivalent to a WebinosEventCallbacks object with all attributes set to null).
+	 * @param referenceTimeout Moment in time until which the Webinos runtime SHALL ensure that the WebinosEvent object being sent is not garbage collected for the purpose of receiving events in response to the event being sent (null, undefined and values up to the current date/time mean that no special action is taken by the runtime in this regard).
+	 * @param sync If false or undefined, the function is non-blocking, otherwise if true it will block.
+	 */
+	WebinosEvent.prototype.dispatchWebinosEvent = function(callbacks, referenceTimeout, sync) {
+
+		var params = {
+			webinosevent: {
+				id: this.id,
+				type: this.type,
+				addressing: this.addressing,
+				inResponseTo: this.inResponseTo,
+				timeStamp: this.timeStamp,
+				expiryTimeStamp: this.expiryTimeStamp,
+				addressingSensitive: this.addressingSensitive,
+				forwarding: this.forwarding,
+				forwardingTimeStamp: this.forwardingTimeStamp,
+				payload: this.payload
+			},
+			referenceTimeout: referenceTimeout,
+			sync: sync
+		};
+
+		if (!params.webinosevent.addressing) {
+			params.webinosevent.addressing = {};
+		}
+		params.webinosevent.addressing.source = {};
+		params.webinosevent.addressing.source.id = eventService.myAppID;
+
+		// check that callbacks has the right type
+		if (callbacks) {
+			if (typeof callbacks !== "object") {
+				throw new WebinosEventException(WebinosEventException.INVALID_ARGUMENT_ERROR, "callbacks must be of type WebinosEventCallbacks");
+			}
+			var cbNames = ["onSending", "onCaching", "onDelivery", "onTimeout", "onError"];
+			for (var cbName in cbNames) {
+				var cb = callbacks[cbName];
+				if (cb && typeof cb !== "function") {
+					throw new WebinosEventException(WebinosEventException.INVALID_ARGUMENT_ERROR, "cb is not a function");
+				}
+			}
+			params.withCallbacks = true;
+		}
+
+		var rpc = webinos.rpcHandler.createRPC(eventService, "WebinosEvent.dispatchWebinosEvent", params);
+
+		if (callbacks) {
+
+			console.log("Registering delivery callback");
+
+			rpc.onSending = function (params) {
+				// params.event, params.recipient
+				if (callbacks.onSending) {
+					callbacks.onSending(params.event, params.recipient);
+				}
+			};
+			rpc.onCaching = function (params) {
+				// params.event
+				if (callbacks.onCaching) {
+					callbacks.onCaching(params.event);
+				}
+			};
+			rpc.onDelivery = function (params) {
+				// params.event, params.recipient
+				if (callbacks.onDelivery) {
+					callbacks.onDelivery(params.event, params.recipient);
+				}
+				webinos.rpcHandler.unregisterCallbackObject(rpc);
+			};
+			rpc.onTimeout = function (params) {
+				// params.event, params.recipient
+				if (callbacks.onTimeout) {
+					callbacks.onTimeout(params.event, params.recipient);
+				}
+				webinos.rpcHandler.unregisterCallbackObject(rpc);
+			};
+			rpc.onError = function (params) {
+				// params.event, params.recipient, params.error
+				if (callbacks.onError) {
+					callbacks.onError(params.event, params.recipient, params.error);
+				}
+				webinos.rpcHandler.unregisterCallbackObject(rpc);
+			};
+
+			webinos.rpcHandler.registerCallbackObject(rpc);
+		}
+
+		webinos.rpcHandler.executeRPC(rpc);
+
+		//raises(WebinosEventException);
+		//returns void
+    };
+
+	/**
+	 * Forwards an event.
+	 * [not yet implemented]
+	 */
+	WebinosEvent.prototype.forwardWebinosEvent = function(forwarding, withTimeStamp, callbacks, referenceTimeout, sync){
+
+    	//returns void
+    	//raises(WebinosEventException);
+    };
+
 }());/*******************************************************************************
+*  Code contributed to the webinos project
+* 
+* Licensed under the Apache License, Version 2.0 (the "License");
+* you may not use this file except in compliance with the License.
+* You may obtain a copy of the License at
+*  
+*     http://www.apache.org/licenses/LICENSE-2.0
+*  
+* Unless required by applicable law or agreed to in writing, software
+* distributed under the License is distributed on an "AS IS" BASIS,
+* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+* See the License for the specific language governing permissions and
+* limitations under the License.
+* 
+* Copyright 2011 Alexander Futasz, Fraunhofer FOKUS
+******************************************************************************/
+(function() {
+
+/**
+ * Webinos Geolocation service constructor (client side).
+ * @constructor
+ * @param obj Object containing displayName, api, etc.
+ */
+WebinosGeolocation = function (obj) {
+	WebinosService.call(this, obj);
+};
+// Inherit all functions from WebinosService
+WebinosGeolocation.prototype = Object.create(WebinosService.prototype);
+// The following allows the 'instanceof' to work properly
+WebinosGeolocation.prototype.constructor = WebinosGeolocation;
+// Register to the service discovery
+_webinos.registerServiceConstructor("http://webinos.org/api/w3c/geolocation", WebinosGeolocation);
+// If you want to enable the old URI, uncomment the following line
+//_webinos.registerServiceConstructor("http://www.w3.org/ns/api-perms/geolocation", WebinosGeolocation);
+
+/**
+ * To bind the service.
+ * @param bindCB BindCallback object.
+ */
+WebinosGeolocation.prototype.bindService = function (bindCB, serviceId) {
+	// actually there should be an auth check here or whatever, but we just always bind
+	this.getCurrentPosition = getCurrentPosition;
+	this.watchPosition = watchPosition;
+	this.clearWatch = clearWatch;
+	
+	if (typeof bindCB.onBind === 'function') {
+		bindCB.onBind(this);
+	};
+}
+
+/**
+ * Retrieve the current position.
+ * @param positionCB Success callback.
+ * @param positionErrorCB Error callback.
+ * @param positionOptions Optional options.
+ */
+function getCurrentPosition(positionCB, positionErrorCB, positionOptions) { 
+	var rpc = webinos.rpcHandler.createRPC(this, "getCurrentPosition", positionOptions); // RPC service name, function, position options
+	webinos.rpcHandler.executeRPC(rpc, function (position) {
+		positionCB(position);
+	},
+	function (error) {
+		positionErrorCB(error);
+	});
+};
+
+var watchIdTable = {};
+
+/**
+ * Register a listener for position updates.
+ * @param positionCB Callback for position updates.
+ * @param positionErrorCB Error callback.
+ * @param positionOptions Optional options.
+ * @returns Registered listener id.
+ */
+function watchPosition(positionCB, positionErrorCB, positionOptions) {
+	var rpc = webinos.rpcHandler.createRPC(this, "watchPosition", [positionOptions]);
+
+	rpc.onEvent = function (position) {
+		positionCB(position);
+	};
+
+	rpc.onError = function (err) {
+		positionErrorCB(err);
+	};
+
+	webinos.rpcHandler.registerCallbackObject(rpc);
+	webinos.rpcHandler.executeRPC(rpc);
+
+	var watchId = parseInt(rpc.id, 16);
+	watchIdTable[watchId] = rpc.id;
+
+	return watchId;
+};
+
+/**
+ * Clear a listener.
+ * @param watchId The id as returned by watchPosition to clear.
+ */
+function clearWatch(watchId) {
+	var _watchId = watchIdTable[watchId];
+	if (!_watchId) return;
+
+	var rpc = webinos.rpcHandler.createRPC(this, "clearWatch", [_watchId]);
+	webinos.rpcHandler.executeRPC(rpc);
+
+	delete watchIdTable[watchId];
+	webinos.rpcHandler.unregisterCallbackObject({api:_watchId});
+};
+
+})();
+/*******************************************************************************
+*  Code contributed to the webinos project
+* 
+* Licensed under the Apache License, Version 2.0 (the "License");
+* you may not use this file except in compliance with the License.
+* You may obtain a copy of the License at
+*  
+*     http://www.apache.org/licenses/LICENSE-2.0
+*  
+* Unless required by applicable law or agreed to in writing, software
+* distributed under the License is distributed on an "AS IS" BASIS,
+* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+* See the License for the specific language governing permissions and
+* limitations under the License.
+* 
+* Copyright 2011 Andre Paul, Fraunhofer FOKUS
+* Copyright 2013 Martin Lasak, Fraunhofer FOKUS
+******************************************************************************/
+(function() {
+
+	/**
+	 * ...
+	 * @constructor
+	 * @param obj Object containing displayName, api, etc.
+	 */
+	var WebNotificationModule = function(obj) {
+		WebinosService.call(this, obj);
+	};
+	// Inherit all functions from WebinosService
+	WebNotificationModule.prototype = Object.create(WebinosService.prototype);	
+	// The following allows the 'instanceof' to work properly
+	WebNotificationModule.prototype.constructor = WebNotificationModule;
+	// Register to the service discovery
+	_webinos.registerServiceConstructor("http://webinos.org/api/notifications", WebNotificationModule);
+	
+	/**
+	 * To bind the service.
+	 * @param bindCB BindCallback object.
+	 */
+	WebNotificationModule.prototype.bindService = function (bindCB, serviceId) {
+		// actually there should be an auth check here or whatever, but we just always bind
+
+		var that = this;
+		this.Notification = function(title, options){
+			return new NotificatioImpl(that, title, options);;
+		};
+
+		if (typeof bindCB.onBind === 'function') {
+			bindCB.onBind(this);
+		};
+	}
+
+	var NotificatioImpl = function (serviceModule, title, options){
+		if(typeof title != "string" || !title) { console.error("Wrong parameter."); return; }
+		var that = this;
+		that._serviceModule = serviceModule;
+		that.dir = (options.dir === "ltr" || options.dir === "rtl") ? options.dir : "auto";
+		that.lang = (typeof options.lang === "string") ? options.lang : "";
+		that.body = (typeof options.body === "string") ? options.body : "";
+		that.tag = (typeof options.tag === "string") ? options.tag : "";
+		that.icon = (typeof options.icon === "string") ? options.icon : "";
+		var rpc = webinos.rpcHandler.createRPC(that._serviceModule, "notify", [title, options]);
+		webinos.rpcHandler.executeRPC(rpc,
+				function (params){
+					//on success
+				 	if(params == 'onclick' && that.onclick){
+				 		that.onclick(params);
+				 	}
+				 	else if(params == 'onshow' && that.onshow){
+				 		that.onshow(params);
+				 	}
+				 	else if(params == 'onclose' && that.onclose){
+				 		that.onclose(params);
+				 	}
+				},
+				function (error){
+					if(that.onerror){
+				 		that.onerror(error);
+				 	}
+				}
+		);
+	};
+
+	NotificatioImpl.prototype.onclick = Function;
+	NotificatioImpl.prototype.onshow = Function;
+	NotificatioImpl.prototype.onclose = Function;
+	NotificatioImpl.prototype.onerror = Function;
+
+	NotificatioImpl.prototype.addEventListener = function(type, callback, capture){
+		if(typeof type != "string" || typeof callback != "function") return;
+		callback._eventref = Math.random()+Date.now();
+		var rpc = webinos.rpcHandler.createRPC(this._serviceModule, "addEventListener", [type, capture, callback._eventref]);
+		webinos.rpcHandler.executeRPC(rpc,callback,Function);
+	};	
+
+	NotificatioImpl.prototype.removeEventListener = function(type, callback, capture){
+		if(typeof type != "string" || typeof callback != "function" || !callback._eventref) return;
+		var rpc = webinos.rpcHandler.createRPC(this._serviceModule, "removeEventListener", [type, capture, callback._eventref]);
+		webinos.rpcHandler.executeRPC(rpc,Function,Function);
+	};			
+
+	NotificatioImpl.prototype.dispatchEvent = function(event){
+		if(typeof type != "object") return;
+		var rpc = webinos.rpcHandler.createRPC(this._serviceModule, "dispatchEvent", [event]);
+		webinos.rpcHandler.executeRPC(rpc,Function,Function);
+	};
+
+	NotificatioImpl.prototype.dir = "auto";
+	NotificatioImpl.prototype.body = "";
+	NotificatioImpl.prototype.lang = "";
+	NotificatioImpl.prototype.tag = "";
+	NotificatioImpl.prototype.icon = "";
+
+	NotificatioImpl.prototype.close = function(){
+		console.log("close called")
+		this.onshow = Function;
+		this.onclick = Function;
+		this.onerror = Function;
+		var onclose = this.onclose || Function;
+		this.onclose = Function;
+		var rpc = webinos.rpcHandler.createRPC(this._serviceModule, "close");
+		webinos.rpcHandler.executeRPC(rpc,onclose,Function);
+	};	
+	
+}());/*******************************************************************************
+ *  Code contributed to the webinos project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ ******************************************************************************/
+(function() {
+
+	PolicyManagementModule = function(obj) {
+		WebinosService.call(this, obj);
+	};
+	
+	// Inherit all functions from WebinosService
+	PolicyManagementModule.prototype = Object.create(WebinosService.prototype);	
+	// The following allows the 'instanceof' to work properly
+	PolicyManagementModule.prototype.constructor = PolicyManagementModule;
+	// Register to the service discovery
+	_webinos.registerServiceConstructor("http://webinos.org/core/policymanagement", PolicyManagementModule);
+
+
+    PolicyManagementModule.prototype.bindService = function (bindCB, serviceId) {
+        this.policy = policy;
+        this.policyset = policyset;
+        this.getPolicySet = getPolicySet;
+        this.testPolicy = testPolicy;
+        this.testNewPolicy = testNewPolicy;
+        this.save = save;
+
+        if (typeof bindCB.onBind === 'function') {
+            bindCB.onBind(this);
+        };
+    }
+
+
+    var policy = function(ps, id, combine, description){
+
+        var _ps = ps;
+        if(ps)
+            _ps = ps;
+        else{
+            _ps = {};
+            _ps['$'] = {};
+            _ps['$']["id"] = (id) ? id : getNewId();
+        }
+
+        if(combine)
+            _ps['$']["combine"] = combine;
+        if(description)
+            _ps['$']["description"] = description;
+
+        function getNewId(type) {
+            return new Date().getTime();
+        };
+
+        this.getInternalPolicy = function(){
+            return _ps;
+        };
+
+        //this.updateRule = function(ruleId, effect, updatedCondition){
+        this.updateRule = function(ruleId, key, value){
+            if(!_ps) {
+                return null;
+            }
+
+//            if(effect != 'permit' && effect != 'prompt-oneshot' && effect != 'prompt-session' && effect != 'prompt-blanket' && effect != 'deny') {
+//                effect = "";
+//            }
+
+            //console.log("Effect :: "+effect);
+            var policy = _ps;
+            var rule;
+            var count=0;
+            for(var i in policy["rule"]) {
+                if(policy["rule"][i]['$']["id"] == ruleId) {
+                    rule = policy["rule"][i];
+                    break;
+                }
+                count++;
+            }
+
+            if(rule){
+
+
+                if(key == "effect"){
+                    if(value)
+                        rule['$']["effect"] = value;
+                    else
+                        rule['$']["effect"] = "permit";
+                }
+                else if(key == "condition"){
+
+                    if(value){
+                        if(rule.condition){
+                            //check first child
+                            var parent = rule["condition"];
+
+                            var tmp = parent[0];
+                            console.log(JSON.stringify(rule["condition"]));
+                            if(tmp['$']["id"] == value['$']["id"]){
+                                parent[0] = value;
+                                return;
+                            }
+
+                            //check other children
+                            while(true){
+                                if(tmp.condition && value){
+
+                                    if(tmp.condition[0]['$']["id"] == value['$']["id"]){
+                                        tmp.condition[0] = value;
+                                        return;
+                                    }
+                                    else
+                                        tmp = tmp.condition;
+                                }
+                                else
+                                    break;
+                            }
+                        }
+                        else{
+                            rule["condition"] = [value];
+                        }
+                    }
+                    else{
+                        if(rule.condition){
+                            rule.condition = undefined;
+                        }
+                        else
+                        {
+                            ;
+                        }
+                    }
+                }
+/*
+                if(!updatedCondition)
+                    if(rule["condition"])
+                        rule["condition"] = undefined;
+
+                else if(!rule.condition){
+                    console.log("No condition");
+                    rule["condition"] = new Array();
+                    rule["condition"][0] = updatedCondition;
+                }
+
+                else{
+
+                    //check first child
+                    var parent = rule["condition"];
+
+                    var tmp = parent[0];
+
+                    if(tmp['$']["id"] == updatedCondition['$']["id"]){
+                        parent[0] = updatedCondition;
+                        return;
+                    }
+
+                    //check other children
+                    while(true){
+                        if(tmp.condition && updatedCondition){
+                            if(tmp.condition[0]['$']["id"] == updatedCondition['$']["id"]){
+                                tmp.condition[0] = updatedCondition;
+                                return;
+                            }
+                            else
+                                tmp = tmp.condition;
+                        }
+                        else
+                            break;
+                    }
+                }*/
+            }
+        }
+
+        this.addRule = function(newRuleId, effect, newCondition, rulePosition){
+            if(!_ps) {
+                return null;
+            }
+
+            //Check if effect is valid value (deny is included in default rule)
+            if(effect != 'permit' && effect != 'prompt-oneshot' && effect != 'prompt-session' && effect != 'prompt-blanket' && effect != 'deny') {
+                effect = "permit";
+            }
+
+            //console.log("Effect :: "+effect);
+            var policy = _ps;
+
+            var rule;
+            for(var i in policy['rule']) {
+                if(policy['rule'][i]['$']['effect'] == effect) {
+                    rule = policy['rule'][i];
+                    break;
+                }
+            }
+            //console.log("rule :: "+rule);
+
+            if(!rule){
+                var id = (newRuleId) ? newRuleId : new Date().getTime();
+                rule = {"$": {"id" : id, "effect" : effect}};
+                var position = 0;
+                if(rulePosition && (rulePosition<0 || policy["rule"].length == 0))
+                    policy["rule"].length;
+                if(!rulePosition && policy["rule"])
+                    position = policy["rule"].length;
+
+                console.log("position : "+position);
+                if(!policy["rule"])
+                    policy["rule"] = [rule];
+                else
+                    policy["rule"].splice(position, 0, rule);
+            }
+
+            if(newCondition){
+                if(!rule.condition){
+                    console.log("No condition");
+                    rule["condition"] = [newCondition];
+                }
+                else{
+                    var tmp = rule["condition"][0];
+                    while(true){
+                        if(tmp.condition){
+                            tmp = tmp.condition[0];
+                        }
+                        else
+                            break;
+                    }
+
+                    tmp["condition"] = [newCondition];
+                }
+            }
+        };
+
+        this.removeRule = function(ruleId) {
+            if(!_ps) {
+                return null;
+            }
+            if(ruleId == null) {
+                return null;
+            }
+
+            var policy = _ps;
+
+            //console.log("PRE : " + JSON.stringify(policy["rule"]));
+            if(policy["rule"]){
+                var index = -1;
+                var count = 0;
+
+                for(var i in policy["rule"]){
+                    if(policy["rule"][i]["$"]["id"] && policy["rule"][i]["$"]["id"] == ruleId){
+                        index = i;
+                        //break;
+                    }
+                    count ++;
+                }
+                if(index != -1){
+                    console.log("Removing rule " + index);
+                    policy["rule"].splice(index,1);
+                    if(count == 1)
+                        policy["rule"] = undefined;
+                }
+
+
+            }
+            else
+                console.log("No rules");
+        };
+
+        this.addSubject = function(newSubjectId, matches){
+            if(!_ps) {
+                return null;
+            }
+
+            //var policy = (policyId) ? getPolicyById(_ps, policyId) : _ps;
+            var policy = _ps;
+
+            if(policy == null) {
+                return null;
+            }
+
+            var id = (newSubjectId) ? newSubjectId : new Date().getTime();
+            var newsubj = {"$" : {"id" : id} , "subject-match" : [] };
+
+            for(var i in matches){
+                if(i == "subject-match")
+                    newsubj["subject-match"].push(matches[i]);
+            }
+
+            if(!policy.target)
+                policy.target = [{}];
+            if(!policy.target[0]["subject"])
+                policy.target[0]["subject"] = [];
+
+            //console.log(JSON.stringify(policy.target[0]));
+            for(var i =0; i<policy.target[0]["subject"].length; i++){
+                    if(policy.target[0]["subject"][i]['$']["id"] == newSubjectId){
+                        console.log("A subject with " + newSubjectId + " is already present");
+                        return;
+                    }
+                }
+            policy.target[0]["subject"].push(newsubj);
+            //console.log(JSON.stringify(policy.target[0]));
+
+        };
+/*
+        this.getSubjects = function(policyId){
+            if(!_ps) {
+                return null;
+            }
+
+            var policy = (policyId) ? getPolicyById(_ps, policyId) : _ps;
+
+            if(policy == null) {
+                return null;
+            }
+            var subjects = policy.target[0]["subject"];
+
+            return subjects;
+        };*/
+
+        this.removeSubject = function(subjectId) {
+            if(!_ps) {
+                return null;
+            }
+            /*
+            if(policyId == null) {
+                return;
+            }*/
+
+            //var policy = (policyId) ? getPolicyById(_ps, policyId) : _ps;
+            var policy = _ps;
+
+            //console.log(policy);
+
+            var count = 0;
+
+            if(policy.target && policy.target[0] && policy.target[0]["subject"]){
+                var index = -1;
+                for(var i in policy.target[0]["subject"]){
+                    console.log(policy.target[0]["subject"][i]["$"]["id"]);
+                    if(policy.target[0]["subject"][i]["$"]["id"] && policy.target[0]["subject"][i]["$"]["id"] == subjectId){
+                        index = i;
+                        //break;
+                    }
+                    count++;
+                }
+                if(index != -1){
+                    console.log("remove "+index);
+                    policy.target[0]["subject"].splice(index,1);
+                }
+                if(count == 1)
+                    //policy.target = [];
+                    policy.target = undefined;
+            }
+            //console.log("AFTER : " + JSON.stringify(policy["rule"]));
+        };
+
+        this.updateSubject = function(subjectId, matches){
+            if(!_ps) {
+                return null;
+            }
+
+            //var policy = (policyId) ? getPolicyById(_ps, policyId) : _ps;
+            var policy = _ps;
+
+            if(policy == null) {
+                return null;
+            }
+            if(policy.target && policy.target[0] && policy.target[0]["subject"]){
+                var subjects = policy.target[0]["subject"];
+                for(var i in subjects){
+                    if(subjects[i]['$']["id"] == subjectId)
+                        subjects[i]["subject-match"] = matches["subject-match"];
+                }
+            }
+        };
+
+        this.updateAttribute = function(key, value){
+            if (!key) {
+                return;
+            }
+            if (key == "combine") {
+                _ps['$']["combine"] = value;
+            }
+            else if (key == "description") {
+                _ps['$']["description"] = value;
+            }
+
+        };
+
+        this.toJSONObject = function(){
+            return _ps;
+        };
+    };
+
+    var policyset = function(ps ,type, basefile, fileId, id, combine, description) {
+        var _type = type;
+        var _basefile = basefile;
+        var _fileId = fileId;
+
+        var _parent;
+
+        //var id = (newSubjectId) ? newSubjectId : new Date().getTime();
+        var _ps = ps;
+        if(ps)
+            _ps = ps;
+        else{
+            _ps = {};
+            _ps['$'] = {};
+            _ps['$']["id"] = (id) ? id : getNewId();
+        }
+
+        if(combine)
+            _ps['$']["combine"] = combine;
+        if(description)
+            _ps['$']["description"] = description;
+
+        this.getBaseFile = function(){
+            return _basefile;
+        };
+
+        this.getFileId = function(){
+            return _fileId;
+        };
+
+        function getNewId(type) {
+            return new Date().getTime();
+        }
+
+        function getPolicyById(policySet, policyId) {
+            //console.log('getPolicyById - policySet is '+JSON.stringify(policySet));
+            /*
+            if(policyId == null || (policySet['$']['id'] && policySet['$']['id'] == policyId)) {
+                return policySet;
+            }
+            */
+            if(policySet['policy']) {
+                for(var j in policySet['policy']) {
+                    if(policySet['policy'][j]['$']['id'] == policyId) {
+                        return policySet['policy'][j];
+                    }
+                }
+            }
+            if(policySet['policy-set']) {
+                for(var j in policySet['policy-set']) {
+                    if(policySet['policy-set'][j]['$']['id'] == policyId) {
+                        return policySet['policy-set'][j];
+                    }
+                    var tmp = getPolicyById(policySet['policy-set'][j], policyId);
+                    if(tmp != null) {
+                        return tmp;
+                    }
+                }
+            }
+            return null;
+        };
+
+        function getPolicySetById(policySet, policyId) {
+            //console.log('getPolicyById - policySet is '+JSON.stringify(policySet));
+
+            if(policySet['policy-set']) {
+                for(var j in policySet['policy-set']) {
+                    if(policySet['policy-set'][j]['$']['id'] == policyId) {
+                        return policySet['policy-set'][j];
+                    }
+                    var tmp = getPolicyById(policySet['policy-set'][j], policyId);
+                    if(tmp != null) {
+                        return tmp;
+                    }
+                }
+            }
+            return null;
+        };
+
+        function getPolicySetBySubject(policySet, subject) {
+            var res = {'generic':[], 'matched':[]};
+            if(policySet['policy-set']) {
+                for(var j in policySet['policy-set']) {
+                    var checkRes = checkPolicySetSubject(policySet['policy-set'][j] , subject);
+                    if (checkRes == 0){
+                        res['generic'].push(new policyset(policySet['policy-set'][j], "policy-set"));
+                    } else if (checkRes == 1){
+                        res['matched'].push(new policyset(policySet['policy-set'][j], "policy-set"));
+                    }
+                    if (policySet['policy-set'][j]['policy-set']){
+                        var tmpRes = getPolicySetBySubject(policySet['policy-set'][j], subject);
+                        for (var e in tmpRes){
+                            if (res[e] && tmpRes[e].length > 0){
+                                res[e] = res[e].concat(tmpRes[e]);
+                            }
+                        }
+                    }
+                }
+            }
+            return res;
+        }
+
+        function checkPolicySetSubject(policySet, subject) {
+            psSubject = null;
+            var tempSubject = JSON.parse(JSON.stringify(subject));
+            try{
+                psSubject = policySet['target'][0]['subject'];
+            }
+            catch(err) {
+                return 0; //subject not specified (it's still a subject match)
+            }
+            if (psSubject){
+                for (var i in psSubject) {
+                    temp = null;
+                    try {
+                        temp = psSubject[i]['subject-match'][0]['$']['match'];
+                    } catch (err) { continue; }
+
+                    // Change the string of psSubjectMatch_i to array psSubjectMatch_i.
+                    var psSubjectMatch_i = temp.split(',');
+
+
+                    if(psSubjectMatch_i.length > 1) {
+                        for(var j in psSubjectMatch_i) {
+                            // psSubjectMatch_i_j = null;
+                            try {
+                                var psSubjectMatch_i_j = psSubjectMatch_i[j];
+                            } catch(err) { continue; }
+
+                            var index = tempSubject.indexOf(psSubjectMatch_i_j);
+                            if (index > -1){
+                                //numMatchedSubjects++;
+                                tempSubject.splice(index,1);
+                            }
+                        }
+                    } else {
+                        var index = tempSubject.indexOf(psSubjectMatch_i[0]);
+                        if (index > -1) {
+                            tempSubject.splice(index,1);
+                        }
+                    }
+                }
+                if (tempSubject.length == 0){
+                    return 1; //subject matches
+                }
+            }
+            return -1; //subject doesn't match
+        }
+
+        function getPolicyBySubject(policySet, subject) {
+            var res = {'generic':[], 'matched':[]};
+            // if(policySet['policy'] && checkPolicySetSubject(policySet, subject) > -1) {
+            if(policySet['policy']) {
+                for(var j in policySet['policy']) {
+                    var tempSubject = JSON.parse(JSON.stringify(subject));
+                    pSubject = null;
+                    try{
+                        pSubject = policySet['policy'][j]['target'][0]['subject'];
+                    }
+                    catch(err) {
+                        res['generic'].push(new policy(policySet['policy'][j]));
+                    }
+                    if (pSubject){
+                        // var numMatchedSubjects = 0;
+                        for (var i in pSubject) {
+                            temp = null;
+                            // pSubjectMatch_i = null;
+                            try {
+                                // pSubjectMatch_i = pSubject[i]['subject-match'][0]['$']['match'];
+                                temp = pSubject[i]['subject-match'][0]['$']['match'];
+                            } catch (err) { continue; }
+
+                            var pSubjectMatch_i = temp.split(',');
+                            if (pSubjectMatch_i.length > 1) {
+
+                                for (var m in pSubjectMatch_i) {
+                                    // pSubjectMatch_i_j = null;
+                                    try {
+                                        var pSubjectMatch_i_j = pSubjectMatch_i[m];
+                                    } catch(err) { continue; }
+
+                                    var index = tempSubject.indexOf(pSubjectMatch_i_j);
+                                    if (index > -1){
+                                        // numMatchedSubjects++;
+                                        tempSubject.splice(index,1);
+                                    }
+                                }
+
+                            } else {
+                                var index = tempSubject.indexOf(pSubjectMatch_i[0]);
+                                if (index > -1){
+                                    // numMatchedSubjects++;
+                                    tempSubject.splice(index,1);
+                                }
+                            }
+                            if (tempSubject.length == 0) {
+                                res['matched'].push(new policy(policySet['policy'][j]));
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+
+            /*if(policySet['policy-set']) {
+                for(var j in policySet['policy-set']) {
+                    var tmpRes = getPolicyBySubject(policySet['policy-set'][j], subject);
+                    for (var e in tmpRes){
+                        if (res[e] && tmpRes[e].length > 0){
+                            res[e] = res[e].concat(tmpRes[e]);
+                        }
+                    }
+                }
+            }*/
+            return res;
+        }
+
+        this.removeSubject = function(subjectId, policyId) {
+            if(!_ps) {
+                return null;
+            }
+            if(policyId == null) {
+                return;
+            }
+
+            //var policy = (policyId) ? getPolicyById(_ps, policyId) : _ps;
+            var policy = _ps;
+
+            //console.log(policy);
+
+            if(policy.target[0]["subject"]){
+                var index = -1;
+                for(var i in policy.target[0]["subject"]){
+                    console.log(policy.target[0]["subject"][i]["$"]["id"]);
+                    if(policy.target[0]["subject"][i]["$"]["id"] && policy.target[0]["subject"][i]["$"]["id"] == subjectId){
+                        index = i;
+                        break;
+                    }
+                }
+                if(index != -1){
+                    console.log("remove "+index);
+                    policy.target[0]["subject"].splice(index,1);
+                }
+            }
+            //console.log("AFTER : " + JSON.stringify(policy["rule"]));
+        };
+
+
+        function removePolicySetById(policySet, policySetId) {
+            if(policySet['policy-set']) {
+                for(var j in policySet['policy-set']) {
+                    if(policySet['policy-set'][j]['$']['id'] == policySetId) {
+                        policySet['policy-set'].splice(j, 1);
+                        return true;
+                    }
+                    /*if(removePolicyById(policySet['policy-set'][j], policyId)) {
+                        return true;
+                    }*/
+                }
+            }
+            return false;
+        }
+
+        function removePolicyById(policySet, policyId) {
+            //console.log('removePolicyById - id is '+policyId+', set is '+JSON.stringify(policySet));
+            if(policySet['policy']) {
+                for(var j in policySet['policy']) {
+                    if(policySet['policy'][j]['$']['id'] == policyId) {
+                        policySet['policy'].splice(j, 1);
+                        return true;
+                    }
+                }
+            }
+            /*
+            if(policySet['policy-set']) {
+                for(var j in policySet['policy-set']) {
+                    if(policySet['policy-set'][j]['$']['id'] == policyId) {
+                        policySet['policy-set'].splice(j, 1);
+                        return true;
+                    }
+                    if(removePolicyById(policySet['policy-set'][j], policyId)) {
+                        return true;
+                    }
+                }
+            }*/
+            return false;
+        }
+
+        this.getInternalPolicySet = function(){
+            return _ps;
+        };
+
+        this.createPolicy = function(policyId, combine, description){
+//        function createPolicy(policyId, combine, description){
+            return new policy(null, policyId, combine, description);
+        };
+
+        this.createPolicySet = function(policySetId, combine, description){
+       //function createPolicySet(policySetId, combine, description){
+            return new policyset(null, policySetId, _basefile, _fileId, policySetId, combine, description);
+        };
+
+
+      this.addPolicy = function(newPolicy, newPolicyPosition){
+//      this.addPolicy = function(policyId, combine, description, newPolicyPosition, succCB){
+//      var newPolicy = createPolicy(policyId, combine, description);
+            if(!_ps)
+                return null;
+
+            if(!_ps["policy"])
+                _ps["policy"] = new Array();
+            else{
+                for(var i =0; i<_ps["policy"].length; i++){
+                    console.log(JSON.stringify(newPolicy.getInternalPolicy()));
+                    if(_ps["policy"][i]['$']["id"] == newPolicy.getInternalPolicy()['$']["id"]){
+                        console.log("A policy with " + newPolicy.getInternalPolicy()['$']["id"] + " is already present");
+                        return;
+                    }
+                }
+            }
+            var position = (newPolicyPosition == undefined || newPolicyPosition<0 || _ps["policy"].length == 0) ? _ps["policy"].length : newPolicyPosition;
+            _ps['policy'].splice(position, 0, newPolicy.getInternalPolicy());
+            //succCB(newPolicy);
+
+        };
+
+        this.addPolicySet = function(newPolicySet, newPolicySetPosition){
+        //this.addPolicySet = function(policySetId, combine, description, newPolicySetPosition){
+            //var newPolicySet = createPolicySet(policySetId, combine, description);
+            if(!_ps)
+                return null;
+
+            if(!_ps['policy-set'])
+                _ps['policy-set'] = new Array();
+            else{
+                for(var i =0; i<_ps['policy-set'].length; i++){
+                    console.log(JSON.stringify(newPolicySet.getInternalPolicySet()));
+                    if(_ps['policy-set'][i]['$']['id'] == newPolicySet.getInternalPolicySet()['$']['id']){
+                        console.log("A policyset with " + newPolicySet.getInternalPolicySet()['$']['id'] + " is already present");
+                        return;
+                    }
+                }
+            }
+            var position = (newPolicySetPosition == undefined || newPolicySetPosition<0 || _ps['policy-set'].length == 0) ? _ps['policy-set'].length : newPolicySetPosition;
+            _ps['policy-set'].splice(position, 0, newPolicySet.getInternalPolicySet());
+            /*
+            if(!_ps)
+                return null;
+
+            if(!_ps["policy-set"])
+                _ps["policy-set"] = new Array();
+
+            var position = (newPolicySetPosition == undefined || newPolicySetPosition<0 || _ps["policy-set"].length == 0) ? _ps["policy-set"].length : newPolicySetPosition;
+//            var position = (!newPolicySetPosition || _ps["policy-set"].length == 0) ? 0 : newPolicySetPosition;
+
+            _ps['policy-set'].splice(position, 0, newPolicySet.getInternalPolicySet());
+            */
+        };
+
+
+
+        // add subject to policyset
+        this.addSubject = function(newSubjectId, matches){
+            if(!_ps) {
+                return null;
+            }
+
+            //var policy = (policyId) ? getPolicyById(_ps, policyId) : _ps;
+            var policy = _ps;
+
+            if(policy == null) {
+                return null;
+            }
+
+            var id = (newSubjectId) ? newSubjectId : new Date().getTime(); //Ecco perchè inserendo ID vuoto metto la data
+            var newsubj = {"$" : {"id" : id} , "subject-match" : [] };
+
+            for(var i in matches){
+                if(i == "subject-match")
+                    newsubj["subject-match"].push(matches[i]);
+            }
+            if(!policy.target)
+                policy.target = [{}];
+
+            if(!policy.target[0]["subject"])
+                policy.target[0]["subject"] = [];
+
+            //console.log(JSON.stringify(policy.target[0]));
+            for(var i =0; i<policy.target[0]["subject"].length; i++){
+                    if(policy.target[0]["subject"][i]['$']["id"] == newSubjectId){
+                        console.log("A subject with " + newSubjectId + " is already present");
+                        return;
+                    }
+                }
+            policy.target[0]["subject"].push(newsubj);
+            //console.log(JSON.stringify(policy.target[0]));
+
+        };
+
+        this.getPolicy = function(policyId){
+            if (policyId){
+                if(typeof policyId == "object" && policyId.length){
+                    var res = getPolicyBySubject(_ps, policyId);
+                    var tempSubject = replaceId(policyId);
+                    // Because of the default copying action, the tempSubject can never be zero.
+                    if ((tempSubject.indexOf("http://webinos.org/subject/id/PZ-Owner") != -1) || (tempSubject.indexOf("http://webinos.org/subject/id/known") != -1 )) {
+                        var res2 = getPolicyBySubject(_ps, tempSubject);
+                        var res = joinResult(res, res2);
+                    }
+                    return res;
+                } else {
+                    var tmp = getPolicyById(_ps, policyId);
+                    if(tmp){
+                        return new policy(tmp);
+                    }
+                }
+            }
+        };
+
+        this.getPolicySet = function(policySetId){
+            if(policySetId){
+                if(typeof policySetId == "object" && policySetId.length){
+                    var res = getPolicySetBySubject(_ps, policySetId);
+                    var tempSubject = replaceId(policySetId);
+                    if ((tempSubject.indexOf("http://webinos.org/subject/id/PZ-Owner") != -1) || (tempSubject.indexOf("http://webinos.org/subject/id/known") !=-1 )) {
+                        var res2 = getPolicySetBySubject(_ps, tempSubject);
+                        var res = joinResult(res, res2);
+                    }
+                    return res;
+                } else {
+                    var tmp = getPolicySetById(_ps, policySetId);
+                    if(tmp){
+                        return new policyset(tmp, "policy-set", _basefile, _fileId);
+                    }
+                }
+            }
+        };
+
+/*
+        this.getSubjects = function(policyId){
+            if(!_ps) {
+                return null;
+            }
+
+            var policy = (policyId) ? getPolicyById(_ps, policyId) : _ps;
+
+            if(policy == null) {
+                return null;
+            }
+            var subjects = policy.target[0]["subject"];
+
+            return subjects;
+        };
+*/
+        this.updateSubject = function(subjectId, matches){
+        //this.updateSubject = function(subjectId, matches/*, policyId*/ ){
+            if(!_ps) {
+                return null;
+            }
+
+            //var policy = (policyId) ? getPolicyById(_ps, policyId) : _ps;
+            var policy = _ps;
+
+            if(policy == null) {
+                return null;
+            }
+
+            if(policy.target && policy.target[0] && policy.target[0]["subject"]){
+                var subjects = policy.target[0]["subject"];
+                for(var i in subjects){
+                    console.log(subjects[i]['$']["id"]);
+                    if(subjects[i]['$']["id"] == subjectId)
+                        subjects[i]["subject-match"] = matches["subject-match"];
+                }
+            }
+        };
+
+        this.removePolicy = function(policyId){
+            if(!_ps) {
+                return null;
+            }
+            if(policyId == null) {
+                return;
+            }
+            if (!_ps['policy']) {
+                return null;
+            }
+            removePolicyById(_ps, policyId);
+            if (_ps['policy'].length == 0) {
+                _ps['policy'] = undefined;
+            }
+        };
+
+        this.removePolicySet = function(policySetId){
+            if(!_ps) {
+                return null;
+            }
+            if(policySetId == null) {
+                return;
+            }
+            if (!_ps['policy-set']) {
+                return null;
+            }
+            removePolicySetById(_ps, policySetId);
+            console.log(_ps['policy-set']);
+            if (_ps['policy-set'].length == 0) {
+                _ps['policy-set'] = undefined;
+            }
+        };
+
+
+
+        this.removeSubject = function(subjectId) {
+            if(!_ps) {
+                return null;
+            }
+            /*
+            if(policyId == null) {
+                return;
+            }*/
+
+            //var policy = (policyId) ? getPolicyById(_ps, policyId) : _ps;
+            var policy = _ps;
+
+            //console.log(policy);
+
+            var count = 0;
+
+            if(policy.target && policy.target[0] && policy.target[0]["subject"]){
+                var index = -1;
+                for(var i in policy.target[0]["subject"]){
+                    console.log(policy.target[0]["subject"][i]["$"]["id"]);
+                    if(policy.target[0]["subject"][i]["$"]["id"] && policy.target[0]["subject"][i]["$"]["id"] == subjectId){
+                        index = i;
+                        //break;
+                    }
+                    count++;
+                }
+                if(index != -1){
+                    console.log("remove "+index);
+                    policy.target[0]["subject"].splice(index,1);
+                    if(count == 1)
+                        policy.target = undefined;
+                }
+
+            }
+            //console.log("AFTER : " + JSON.stringify(policy["rule"]));
+        };
+
+        this.updateAttribute = function(key, value){
+          if(key == "combine" || key == "description"){
+            _ps['$'][key] = value;
+          }
+        };
+        /*function(policySetId, combine, description){
+            if(policySetId)
+                _ps['$']["id"] = policySetId;
+            if(combine)
+                _ps['$']["combine"] = combine;
+            if(description)
+                _ps['$']["description"] = description;};*/
+
+
+        this.toJSONObject = function(){
+            return _ps;
+            //return "ID : " + _id + ", DESCRIPTION : " + _ps.$.description + ", PATH : " + _basefile;
+        }
+    }
+
+    var policyFiles = new Array();
+
+    function getPolicySet(policyset_id, success, error) {
+        var successCB = function(params){
+            var ps = new policyset(params, "policy-set", policyset_id) ;
+            console.log(ps);
+            success(ps);
+        }
+
+        if(!policyFiles || policyFiles.length == 0) {
+            var rpc = webinos.rpcHandler.createRPC(this, "getPolicy", [policyset_id]); // RPC service name, function, position options
+            webinos.rpcHandler.executeRPC(rpc
+                , function (params) {
+                    successCB(params);
+                }
+                , function (error) {
+                    console.log(error);
+                }
+            );
+        }
+        else {
+            success(new policyset(policyFiles[policyset_id].content, "policy-set", policyset_id));
+        }
+    };
+
+    function save(policyset, successCB, errorCB) {
+        var rpc = webinos.rpcHandler.createRPC(this, "setPolicy", [policyset.getBaseFile(), JSON.stringify(policyset.toJSONObject())]);
+        webinos.rpcHandler.executeRPC(rpc
+            , function (params) {
+                successCB(params);
+            }
+            , function (error) {
+                errorCB(error);
+            }
+        );
+    };
+
+    function testPolicy(policyset, request, successCB, errorCB) {
+        var rpc = webinos.rpcHandler.createRPC(this, "testPolicy", [policyset.getBaseFile(), JSON.stringify(request)]);
+        webinos.rpcHandler.executeRPC(rpc
+            , function (params) {
+                successCB(params);
+            }
+            , function (error) {
+                errorCB(error);
+            }
+        );
+    };
+    function testNewPolicy(policyset, request, successCB, errorCB) {
+        var rpc = webinos.rpcHandler.createRPC(this, "testNewPolicy", [JSON.stringify(policyset.toJSONObject()), JSON.stringify(request)]);
+        webinos.rpcHandler.executeRPC(rpc
+            , function (params) {
+                successCB(params);
+            }
+            , function (error) {
+                errorCB(error);
+            }
+        );
+    };
+
+// Start point..............
+// This function is used to test if the userId belongs to the friends array.
+    function userBelongsToFriend(userId) {
+        if (userId !== webinos.session.getPZHId()) {
+            var friends = webinos.session.getConnectedPzh();
+            var index = friends.indexOf(userId);
+            if (index > -1){
+                return 1;
+            }
+        }
+        return 0;
+    }
+// This function is used to replace the elements (ids) in the subject, and to  make it simple, only two possible values, one is the generic URI of zone owner, and another is the friends. Then return the changed subject (tempSubject).
+    function replaceId(subject) {
+        var friendFound = false;
+        var tempSubject = [];
+
+        var zoneOwner = webinos.session.getPZHId();
+        if (!zoneOwner) {
+            zoneOwner = webinos.session.getPZPId();
+        }
+
+        for (var j in subject) {
+            if (subject[j] === zoneOwner) {
+                tempSubject.push("http://webinos.org/subject/id/PZ-Owner");
+            } else if (userBelongsToFriend(subject[j])) {
+                if (friendFound == false) {
+                    tempSubject.push("http://webinos.org/subject/id/known");
+                    friendFound = true;
+                }
+            // do nothing if friendFound is true
+            } else {
+                // default behaviour, copy item
+                tempSubject.push(subject[j]);
+            }
+        }
+        return tempSubject;
+    }
+
+    function deepCopy(p,c) {
+        var c = c || {};
+        for (var i in p) {
+            if (typeof p[i] === 'object') {
+                c[i] = (p[i].constructor === Array) ? [] : {};
+                deepCopy(p[i], c[i]);
+            }
+            else {
+                c[i] = p[i];
+            }
+        }
+        return c;
+    }
+
+// This function used to join two results together, res2 only can have two elements at most, one in the generic set and one in the matched set. So ckecked them one by one is the easiest solution. To avoid duplication, in both if functions, also check if the element in the res2 already presented in the res1, if already presented, skip this step, other wise push the element in res1, and return res1.
+    function joinResult(res1, res2) {
+        var found_g = false, found_m = false;
+        var res = deepCopy(res1);
+        for (var i in res2['generic']) {
+            for (var j in res1['generic']) {
+                if (res1['generic'][j].toJSONObject() === res2['generic'][i].toJSONObject() ) {
+                    found_g = true;
+                    break;
+                }
+            }
+            if (found_g == false) {
+                res['generic'].push(res2['generic'][i]);
+            }
+            found_g = false;
+        }
+
+        for (var m in res2['matched']) {
+            for (var n in res1['matched']) {
+                if (res1['matched'][n].toJSONObject() === res2['matched'][m].toJSONObject() ) {
+                    found_m = true;
+                    break;
+                }
+            }
+            if (found_m == false) {
+                res['matched'].push(res2['matched'][m]);
+            }
+            found_m = false;
+        }
+
+        return res;
+    }
+})();
+/*******************************************************************************
  *  Code contributed to the webinos project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -2106,10 +3951,8 @@ if (typeof _webinos === "undefined") {
  ******************************************************************************/
 
 (function() {
-  App2AppModule = function (params) {
-
-    this.base = WebinosService;
-    this.base(params);
+  var App2AppModule = function (obj) {
+    WebinosService.call(this, obj);
 
     this.peerId = generateIdentifier();
 
@@ -2125,7 +3968,12 @@ if (typeof _webinos === "undefined") {
 
   };
 
-  App2AppModule.prototype = new WebinosService();
+  // Inherit all functions from WebinosService
+  App2AppModule.prototype = Object.create(WebinosService.prototype);
+  // The following allows the 'instanceof' to work properly
+  App2AppModule.prototype.constructor = App2AppModule;
+  // Register to the service discovery
+  _webinos.registerServiceConstructor("http://webinos.org/api/app2app", App2AppModule);
 
   App2AppModule.prototype.bindService = function (bindCallback) {
     if (typeof bindCallback.onBind === 'function') {
@@ -2631,11 +4479,15 @@ if (typeof _webinos === "undefined") {
 	 * @param obj Object containing displayName, api, etc.
 	 */
 	AppLauncherModule = function(obj) {
-		this.base = WebinosService;
-		this.base(obj);
+		WebinosService.call(this, obj);
 	};
 	
-	AppLauncherModule.prototype = new WebinosService();
+	// Inherit all functions from WebinosService
+	AppLauncherModule.prototype = Object.create(WebinosService.prototype);	
+	// The following allows the 'instanceof' to work properly
+	AppLauncherModule.prototype.constructor = AppLauncherModule;
+	// Register to the service discovery
+	_webinos.registerServiceConstructor("http://webinos.org/api/applauncher", AppLauncherModule);
 
 	/**
 	 * To bind the service.
@@ -2692,11 +4544,14 @@ if (typeof _webinos === "undefined") {
 	var PropertyValueSuccessCallback, ErrorCallback, DeviceAPIError, PropertyRef;
 
 	DeviceStatusManager = function (obj) {
-		this.base = WebinosService;
-		this.base(obj);
+		WebinosService.call(this, obj);
 	};
 	
-	DeviceStatusManager.prototype = new WebinosService;
+	DeviceStatusManager.prototype = Object.create(WebinosService.prototype);
+	// The following allows the 'instanceof' to work properly
+	DeviceStatusManager.prototype.constructor = DeviceStatusManager;
+	// Register in the service discovery
+	_webinos.registerServiceConstructor("http://webinos.org/api/devicestatus", DeviceStatusManager);
 
 	DeviceStatusManager.prototype.bindService = function (bindCB, serviceId) {
 		// actually there should be an auth check here or whatever, but we just always bind
@@ -2793,1150 +4648,6 @@ if (typeof _webinos === "undefined") {
 
 }());
 /*******************************************************************************
- * Code contributed to the webinos project
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *    http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *
- * Copyright 2012 Felix-Johannes Jendrusch, Fraunhofer FOKUS
- ******************************************************************************/
-
-if (typeof webinos === "undefined") webinos = {};
-if (typeof webinos.util === "undefined") webinos.util = {};
-
-(function (exports) {
-  exports.inherits = inherits;
-
-  // webinos <3 inherits
-  function inherits(c, p, proto) {
-    proto = proto || {};
-    var e = {};
-    [c.prototype, proto].forEach(function (s) {
-      Object.getOwnPropertyNames(s).forEach(function (k) {
-        e[k] = Object.getOwnPropertyDescriptor(s, k);
-      });
-    });
-    c.prototype = Object.create(p.prototype, e);
-    c.super_ = p;
-  }
-
-  exports.CustomError = CustomError;
-
-  inherits(CustomError, Error);
-  function CustomError(name, message) {
-    Error.call(this, message || name);
-
-    this.name = name;
-  }
-
-  exports.EventTarget = EventTarget;
-
-  function EventTarget() {}
-
-  EventTarget.prototype.addEventListener = function (type, listener) {
-    if (typeof this.events === "undefined") this.events = {};
-    if (typeof this.events[type] === "undefined") this.events[type] = [];
-
-    this.events[type].push(listener);
-  };
-
-  EventTarget.prototype.removeEventListener = function (type, listener) {
-    if (typeof this.events === "undefined" ||
-        typeof this.events[type] === "undefined") {
-      return;
-    }
-
-    var position = this.events[type].indexOf(listener);
-    if (position >= 0) {
-      this.events[type].splice(position, 1);
-    }
-  };
-
-  EventTarget.prototype.removeAllListeners = function (type) {
-    if (arguments.length === 0) {
-      this.events = {};
-    } else if (typeof this.events !== "undefined" &&
-               typeof this.events[type] !== "undefined") {
-      this.events[type] = [];
-    }
-  };
-
-  EventTarget.prototype.dispatchEvent = function (event) {
-    if (typeof this.events === "undefined" ||
-        typeof this.events[event.type] === "undefined") {
-      return false;
-    }
-
-    var listeners = this.events[event.type].slice();
-    if (!listeners.length) return false;
-
-    for (var i = 0, length = listeners.length; i < length; i++) {
-      listeners[i].call(this, event);
-    }
-
-    return true;
-  };
-
-  exports.Event = Event;
-
-  function Event(type) {
-    this.type = type;
-    this.timeStamp = Date.now();
-  }
-
-  exports.ProgressEvent = ProgressEvent;
-
-  inherits(ProgressEvent, Event);
-  function ProgressEvent(type, eventInitDict) {
-    Event.call(this, type);
-
-    eventInitDict = eventInitDict || {};
-
-    this.lengthComputable = eventInitDict.lengthComputable || false;
-    this.loaded = eventInitDict.loaded || 0;
-    this.total = eventInitDict.total || 0;
-  }
-
-  exports.callback = function (maybeCallback) {
-    if (typeof maybeCallback !== "function") {
-      return function () {};
-    }
-    return maybeCallback;
-  };
-
-  exports.async = function (callback) {
-    if (typeof callback !== "function") {
-      return callback;
-    }
-    return function () {
-      var argsArray = arguments;
-      window.setTimeout(function () {
-        callback.apply(null, argsArray);
-      }, 0);
-    };
-  };
-
-  exports.ab2hex = function (buf) {
-    var hex = "";
-    var view = new Uint8Array(buf);
-    for (var i = 0; i < view.length; i++) {
-      var repr = view[i].toString(16);
-      hex += (repr.length < 2 ? "0" : "") + repr;
-    }
-    return hex;
-  };
-
-  exports.hex2ab = function (hex) {
-    var buf = new ArrayBuffer(hex.length / 2);
-    var view = new Uint8Array(buf);
-    for (var i = 0; i < view.length; i++) {
-      view[i] = parseInt(hex.substr(i * 2, 2), 16);
-    }
-    return buf;
-  }
-})(webinos.util);
-/*******************************************************************************
- * Code contributed to the webinos project
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *    http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *
- * Copyright 2012 Felix-Johannes Jendrusch, Fraunhofer FOKUS
- ******************************************************************************/
-
-if (typeof webinos === "undefined") webinos = {};
-if (typeof webinos.path === "undefined") webinos.path = {};
-
-// webinos <3 node.js
-(function (exports) {
-  var splitPathRe = /^(\/?)([\s\S]+\/(?!$)|\/)?((?:\.{1,2}$|[\s\S]+?)?(\.[^.\/]*)?)$/;
-
-  function splitPath(path) {
-    var result = splitPathRe.exec(path);
-    return [result[1] || "", result[2] || "", result[3] || "", result[4] || ""];
-  }
-
-  function normalizeArray(parts, allowAboveRoot) {
-    var up = 0;
-    for (var i = parts.length - 1; i >= 0; i--) {
-      var part = parts[i];
-      if (part === ".") {
-        parts.splice(i, 1);
-      } else if (part === "..") {
-        parts.splice(i, 1);
-        up++;
-      } else if (up) {
-        parts.splice(i, 1);
-        up--;
-      }
-    }
-
-    if (allowAboveRoot) {
-      for (; up--;) {
-        parts.unshift("..");
-      }
-    }
-
-    return parts;
-  }
-
-  exports.normalize = function (path) {
-    var isAbsolute = path.charAt(0) === "/"
-      , trailingSlash = path.substr(-1) === "/";
-
-    path = normalizeArray(path.split("/").filter(function (part) {
-      return !!part;
-    }), !isAbsolute).join("/");
-
-    if (!path && !isAbsolute) {
-      path = ".";
-    }
-    if (path && trailingSlash) {
-      path += "/";
-    }
-
-    return (isAbsolute ? "/" : "") + path;
-  };
-
-  exports.join = function () {
-    var paths = Array.prototype.slice.call(arguments, 0);
-    return exports.normalize(paths.filter(function (path) {
-      return path && typeof path === "string";
-    }).join("/"));
-  };
-
-  exports.resolve = function () {
-    var resolvedPath = ""
-      , resolvedAbsolute = false;
-
-    for (var i = arguments.length - 1; i >= 0 && !resolvedAbsolute; i--) {
-      // TODO Use some fallback (e.g., the current working directory ..not)?
-      var path = arguments[i];
-
-      if (!path || typeof path !== "string") {
-        continue;
-      }
-
-      resolvedPath = path + "/" + resolvedPath;
-      resolvedAbsolute = path.charAt(0) === "/";
-    }
-
-    resolvedPath = normalizeArray(
-      resolvedPath.split("/").filter(function (part) {
-        return !!part;
-      }
-    ), !resolvedAbsolute).join("/");
-
-    return ((resolvedAbsolute ? "/" : "") + resolvedPath) || ".";
-  };
-
-  exports.relative = function (from, to) {
-    from = exports.resolve(from).substr(1);
-    to = exports.resolve(to).substr(1);
-
-    function trim(arr) {
-      var start = 0;
-      for (; start < arr.length; start++) {
-        if (arr[start] !== "") break;
-      }
-
-      var end = arr.length - 1;
-      for (; end >= 0; end--) {
-        if (arr[end] !== "") break;
-      }
-
-      if (start > end) return [];
-      return arr.slice(start, end - start + 1);
-    }
-
-    var fromParts = trim(from.split("/"));
-    var toParts = trim(to.split("/"));
-
-    var length = Math.min(fromParts.length, toParts.length);
-    var samePartsLength = length;
-    for (var i = 0; i < length; i++) {
-      if (fromParts[i] !== toParts[i]) {
-        samePartsLength = i;
-        break;
-      }
-    }
-
-    var outputParts = [];
-    for (var i = samePartsLength; i < fromParts.length; i++) {
-      outputParts.push("..");
-    }
-
-    outputParts = outputParts.concat(toParts.slice(samePartsLength));
-
-    return outputParts.join("/");
-  };
-
-  // webinos <3 webkit
-  exports.isParentOf = function (parent, mayBeChild) {
-    if (parent === "/" && mayBeChild !== "/") {
-      return true;
-    }
-
-    if (parent.length > mayBeChild.length || mayBeChild.indexOf(parent) !== 0) {
-      return false;
-    }
-
-    if (mayBeChild.charAt(parent.length) !== "/") {
-      return false;
-    }
-
-    return true;
-  };
-
-  exports.dirname = function (path) {
-    var result = splitPath(path)
-      , root = result[0]
-      , dir = result[1];
-
-    if (!root && !dir) {
-      return ".";
-    }
-
-    if (dir) {
-      dir = dir.substr(0, dir.length - 1);
-    }
-
-    return root + dir;
-  };
-
-  exports.basename = function (path, ext) {
-    var file = splitPath(path)[2];
-
-    if (ext && file.substr(-1 * ext.length) === ext) {
-      file = file.substr(0, file.length - ext.length);
-    }
-
-    return file;
-  };
-
-  exports.extname = function (path) {
-    return splitPath(path)[3];
-  };
-})(webinos.path);
-/*******************************************************************************
- * Code contributed to the webinos project
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *    http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *
- * Copyright 2012 Felix-Johannes Jendrusch, Fraunhofer FOKUS
- ******************************************************************************/
-
-// [WP-608] Support write/truncate abort
-
-if (typeof webinos === "undefined") webinos = {};
-if (typeof webinos.file === "undefined") webinos.file = {};
-
-(function (exports) {
-  exports.Service = Service;
-
-  webinos.util.inherits(Service, WebinosService);
-  function Service(object, rpc) {
-    WebinosService.call(this, object);
-
-    this.rpc = rpc;
-  }
-
-  Service.prototype.requestFileSystem = function (type, size, successCallback, errorCallback) {
-    var self = this;
-    var requestFileSystem = self.rpc.createRPC(self, "requestFileSystem");
-    self.rpc.executeRPC(requestFileSystem, function (filesystem) {
-      successCallback(new FileSystem(self, filesystem.name));
-    }, errorCallback);
-  };
-
-  Service.prototype.resolveLocalFileSystemURL = function (url, successCallback, errorCallback) {
-    webinos.util.async(errorCallback)(new webinos.util.CustomError("NotSupportedError"));
-  };
-
-  function FileSystem(service, name) {
-    this.service = service;
-
-    this.name = name;
-    this.root = new DirectoryEntry(this, "/");
-  }
-
-  FileSystem.prototype.toJSON = function () {
-    var json = { name : this.name };
-    return json;
-  };
-
-  function Entry(filesystem, fullPath) {
-    this.name = webinos.path.basename(fullPath);
-    this.fullPath = fullPath;
-    this.filesystem = filesystem;
-
-    this.service = filesystem.service;
-    this.rpc = filesystem.service.rpc;
-  }
-
-  Entry.prototype.isFile = false;
-  Entry.prototype.isDirectory = false;
-
-  Entry.prototype.getMetadata = function (successCallback, errorCallback) {
-    var getMetadata = this.rpc.createRPC(this.service, "getMetadata", { entry : this });
-    this.rpc.executeRPC(getMetadata, function (metadata) {
-      successCallback(new Metadata(metadata));
-    }, errorCallback);
-  };
-
-  Entry.prototype.moveTo = function (parent, newName, successCallback, errorCallback) {
-    var self = this;
-    if (self.service === parent.service) {
-      var moveTo = self.rpc.createRPC(self.service, "moveTo", { source : self, parent : parent, newName : newName });
-      self.rpc.executeRPC(moveTo, function (entry) {
-        if (self.isDirectory) {
-          successCallback(new DirectoryEntry(self.filesystem, entry.fullPath));
-        } else {
-          successCallback(new FileEntry(self.filesystem, entry.fullPath));
-        }
-      }, errorCallback);
-    } else {
-      var getLink = self.rpc.createRPC(self.service, "getLink", { entry : self });
-      self.rpc.executeRPC(getLink, function (link) {
-        var download = parent.rpc.createRPC(parent.service, "download", { link : link, parent : parent, name : newName || self.name });
-        parent.rpc.executeRPC(download, function (entry) {
-          var remove = self.rpc.createRPC(self.service, (self.isDirectory ? "removeRecursively" : "remove"), { entry : self });
-          self.rpc.executeRPC(remove, function () {
-            if (self.isDirectory) {
-              successCallback(new DirectoryEntry(parent.filesystem, entry.fullPath));
-            } else {
-              successCallback(new FileEntry(parent.filesystem, entry.fullPath));
-            }
-          }, errorCallback);
-        }, errorCallback);
-      }, errorCallback);
-    }
-  };
-
-  Entry.prototype.copyTo = function (parent, newName, successCallback, errorCallback) {
-    var self = this;
-    if (self.service === parent.service) {
-      var copyTo = self.rpc.createRPC(self.service, "copyTo", { source : self, parent : parent, newName : newName });
-      self.rpc.executeRPC(copyTo, function (entry) {
-        if (self.isDirectory) {
-          successCallback(new DirectoryEntry(self.filesystem, entry.fullPath));
-        } else {
-          successCallback(new FileEntry(self.filesystem, entry.fullPath));
-        }
-      }, errorCallback);
-    } else {
-      var getLink = self.rpc.createRPC(self.service, "getLink", { entry : self });
-      self.rpc.executeRPC(getLink, function (link) {
-        var download = parent.rpc.createRPC(parent.service, "download", { link : link, parent : parent, name : newName || self.name });
-        parent.rpc.executeRPC(download, function (entry) {
-          if (self.isDirectory) {
-            successCallback(new DirectoryEntry(parent.filesystem, entry.fullPath));
-          } else {
-            successCallback(new FileEntry(parent.filesystem, entry.fullPath));
-          }
-        }, errorCallback);
-      }, errorCallback);
-    }
-  };
-
-  Entry.prototype.toURL = function () {
-    throw new webinos.util.CustomError("NotSupportedError");
-  };
-
-  Entry.prototype.remove = function (successCallback, errorCallback) {
-    var remove = this.rpc.createRPC(this.service, "remove", { entry : this });
-    this.rpc.executeRPC(remove, successCallback, errorCallback);
-  };
-
-  Entry.prototype.getParent = function (successCallback, errorCallback) {
-    var self = this;
-    var getParent = self.rpc.createRPC(self.service, "getParent", { entry : self });
-    self.rpc.executeRPC(getParent, function (entry) {
-      successCallback(new DirectoryEntry(self.filesystem, entry.fullPath));
-    }, errorCallback);
-  };
-
-  Entry.prototype.toJSON = function () {
-    var json =
-      { name        : this.name
-      , fullPath    : this.fullPath
-      , filesystem  : this.filesystem
-      , isFile      : this.isFile
-      , isDirectory : this.isDirectory
-      };
-    return json;
-  };
-
-  function Metadata(metadata) {
-    this.modificationTime = new Date(metadata.modificationTime);
-    this.size = metadata.size;
-  }
-
-  webinos.util.inherits(DirectoryEntry, Entry);
-  function DirectoryEntry(filesystem, fullPath) {
-    Entry.call(this, filesystem, fullPath);
-  }
-
-  DirectoryEntry.prototype.isDirectory = true;
-
-  DirectoryEntry.prototype.createReader = function () {
-    return new DirectoryReader(this);
-  };
-
-  DirectoryEntry.prototype.getFile = function (path, options, successCallback, errorCallback) {
-    var self = this;
-    var getFile = self.rpc.createRPC(self.service, "getFile", { entry : self, path : path, options : options });
-    self.rpc.executeRPC(getFile, function (entry) {
-      successCallback(new FileEntry(self.filesystem, entry.fullPath));
-    }, errorCallback);
-  };
-
-  DirectoryEntry.prototype.getDirectory = function (path, options, successCallback, errorCallback) {
-    var self = this;
-    var getDirectory = self.rpc.createRPC(self.service, "getDirectory", { entry : self, path : path, options : options });
-    self.rpc.executeRPC(getDirectory, function (entry) {
-      successCallback(new DirectoryEntry(self.filesystem, entry.fullPath));
-    }, errorCallback);
-  };
-
-  DirectoryEntry.prototype.removeRecursively = function (successCallback, errorCallback) {
-    var removeRecursively = this.rpc.createRPC(this.service, "removeRecursively", { entry : this });
-    this.rpc.executeRPC(removeRecursively, successCallback, errorCallback);
-  };
-
-  function DirectoryReader(entry) {
-    this.entry = entry;
-
-    this.service = entry.filesystem.service;
-    this.rpc = entry.filesystem.service.rpc;
-  }
-
-  DirectoryReader.prototype.readEntries = function (successCallback, errorCallback) {
-    var self = this;
-
-    function next() {
-      if (!self.entries.length) return [];
-
-      var chunk = self.entries.slice(0, 10);
-      self.entries.splice(0, 10);
-      return chunk;
-    }
-
-    if (typeof self.entries === "undefined") {
-      var readEntries = self.rpc.createRPC(self.service, "readEntries", { entry : self.entry });
-      self.rpc.executeRPC(readEntries, function (entries) {
-        self.entries = entries.map(function (entry) {
-          if (entry.isDirectory) {
-            return new DirectoryEntry(self.entry.filesystem, entry.fullPath);
-          } else {
-            return new FileEntry(self.entry.filesystem, entry.fullPath);
-          }
-        });
-
-        successCallback(next());
-      }, errorCallback);
-    } else webinos.util.async(successCallback)(next());
-  };
-
-  webinos.util.inherits(FileEntry, Entry);
-  function FileEntry(filesystem, fullPath) {
-    Entry.call(this, filesystem, fullPath);
-  }
-
-  FileEntry.prototype.isFile = true;
-
-  FileEntry.prototype.getLink = function (successCallback, errorCallback) {
-    var getLink = this.rpc.createRPC(this.service, "getLink", { entry : this });
-    this.rpc.executeRPC(getLink, successCallback, errorCallback);
-  };
-
-  FileEntry.prototype.createWriter = function (successCallback, errorCallback) {
-    var self = this;
-    var getMetadata = self.rpc.createRPC(self.service, "getMetadata", { entry : self });
-    self.rpc.executeRPC(getMetadata, function (metadata) {
-      var writer = new FileWriter(self);
-      writer.length = metadata.size;
-
-      successCallback(writer);
-    }, errorCallback);
-  };
-
-  FileEntry.prototype.file = function (successCallback, errorCallback) {
-    var self = this;
-    var getMetadata = self.rpc.createRPC(self.service, "getMetadata", { entry : self });
-    self.rpc.executeRPC(getMetadata, function (metadata) {
-      var blobParts = [];
-
-      var remote;
-      var port = self.rpc.createRPC(self.service, "read",
-         { entry : self
-         , options : { bufferSize : 16 * 1024, autopause : true }
-         });
-      port.ref = function (params, successCallback, errorCallback, ref) {
-        remote = ref;
-      };
-      port.open = function () {};
-      port.data = function (params) {
-        blobParts.push(webinos.util.hex2ab(params.data));
-
-        var resume = self.rpc.createRPC(remote, "resume", null);
-        self.rpc.executeRPC(resume);
-      };
-      port.end = function () {};
-      port.close = function () {
-        try {
-          var blob = new Blob(blobParts);
-          blob.name = self.name;
-          blob.lastModifiedDate = new Date(metadata.modificationTime);
-
-          successCallback(blob);
-        } finally {
-          self.rpc.unregisterCallbackObject(port);
-        }
-      };
-      port.error = function (params) {
-        try {
-          errorCallback(params.error);
-        } finally {
-          self.rpc.unregisterCallbackObject(port);
-        }
-      };
-
-      self.rpc.registerCallbackObject(port);
-      self.rpc.executeRPC(port);
-    }, errorCallback);
-  };
-
-  webinos.util.inherits(FileWriter, webinos.util.EventTarget);
-  function FileWriter(entry) {
-    webinos.util.EventTarget.call(this);
-
-    this.entry = entry;
-
-    this.readyState = FileWriter.INIT;
-    this.length = 0;
-    this.position = 0;
-
-    this.service = entry.filesystem.service;
-    this.rpc = entry.filesystem.service.rpc;
-
-    this.addEventListener("writestart", function (event) {
-      webinos.util.callback(this.onwritestart)(event);
-    });
-    this.addEventListener("progress", function (event) {
-      webinos.util.callback(this.onprogress)(event);
-    });
-    this.addEventListener("abort", function (event) {
-      webinos.util.callback(this.onabort)(event);
-    });
-    this.addEventListener("write", function (event) {
-      webinos.util.callback(this.onwrite)(event);
-    });
-    this.addEventListener("writeend", function (event) {
-      webinos.util.callback(this.onwriteend)(event);
-    });
-    this.addEventListener("error", function (event) {
-      webinos.util.callback(this.onerror)(event);
-    });
-  }
-
-  FileWriter.INIT = 0;
-  FileWriter.WRITING = 1;
-  FileWriter.DONE = 2;
-
-  function BlobIterator(blob) {
-    this.blob = blob;
-    this.position = 0;
-  }
-
-  BlobIterator.prototype.hasNext = function () {
-    return this.position < this.blob.size;
-  };
-
-  BlobIterator.prototype.next = function () {
-    if (!this.hasNext()) {
-      throw new webinos.util.CustomError("InvalidStateError");
-    }
-
-    var end = Math.min(this.position + 16 * 1024, this.blob.size);
-    var chunk;
-    if (this.blob.slice) {
-      chunk = this.blob.slice(this.position, end);
-    } else if (this.blob.webkitSlice) {
-      chunk = this.blob.webkitSlice(this.position, end);
-    } else if (this.blob.mozSlice) {
-      chunk = this.blob.mozSlice(this.position, end);
-    }
-    this.position = end;
-    return chunk;
-  };
-
-  FileWriter.prototype.write = function (data) {
-    var self = this;
-
-    if (self.readyState === FileWriter.WRITING) {
-      throw new webinos.util.CustomError("InvalidStateError");
-    }
-
-    self.readyState = FileWriter.WRITING;
-    self.dispatchEvent(new webinos.util.ProgressEvent("writestart"));
-
-    var reader = new FileReader();
-    // reader.onloadstart = function (event) {};
-    // reader.onprogress = function (event) {};
-    // reader.onabort = function (event) {};
-    reader.onload = function () {
-      var write = self.rpc.createRPC(remote, "write", { data : webinos.util.ab2hex(reader.result) });
-      self.rpc.executeRPC(write, function (bytesWritten) {
-        self.position += bytesWritten;
-        self.length = Math.max(self.position, self.length);
-
-        self.dispatchEvent(new webinos.util.ProgressEvent("progress"));
-      });
-    };
-    // reader.onloadend = function (event) {};
-    reader.onerror = function () {
-      var destroy = self.rpc.createRPC(remote, "destroy");
-      self.rpc.executeRPC(destroy, function () {
-        try {
-          self.error = reader.error;
-          self.readyState = FileWriter.DONE;
-          self.dispatchEvent(new webinos.util.ProgressEvent("error"));
-          self.dispatchEvent(new webinos.util.ProgressEvent("writeend"));
-        } finally {
-          self.rpc.unregisterCallbackObject(port);
-        }
-      });
-    };
-
-    var iterator = new BlobIterator(data);
-    function iterate() {
-      if (iterator.hasNext()) {
-        reader.readAsArrayBuffer(iterator.next());
-      } else {
-        var end = self.rpc.createRPC(remote, "end");
-        self.rpc.executeRPC(end, function () {
-          try {
-            self.readyState = FileWriter.DONE;
-            self.dispatchEvent(new webinos.util.ProgressEvent("write"));
-            self.dispatchEvent(new webinos.util.ProgressEvent("writeend"));
-          } finally {
-            self.rpc.unregisterCallbackObject(port);
-          }
-        });
-      }
-    }
-
-    var remote;
-    var port = self.rpc.createRPC(self.service, "write",
-       { entry : self.entry
-       , options : { start : self.position }
-       });
-    port.ref = function (params, successCallback, errorCallback, ref) {
-      remote = ref;
-    };
-    port.open = function () {
-      iterate();
-    };
-    port.drain = function () {
-      iterate();
-    };
-    port.close = function () {};
-    port.error = function (params) {
-      try {
-        self.error = params.error;
-        self.readyState = FileWriter.DONE;
-        self.dispatchEvent(new webinos.util.ProgressEvent("error"));
-        self.dispatchEvent(new webinos.util.ProgressEvent("writeend"));
-      } finally {
-        reader.abort();
-
-        self.rpc.unregisterCallbackObject(port);
-      }
-    };
-
-    self.rpc.registerCallbackObject(port);
-    self.rpc.executeRPC(port);
-  };
-
-  FileWriter.prototype.seek = function (offset) {
-    if (this.readyState === FileWriter.WRITING) {
-      throw new webinos.util.CustomError("InvalidStateError");
-    }
-
-    this.position = offset;
-
-    if (this.position > this.length) {
-      this.position = this.length;
-    }
-
-    if (this.position < 0) {
-      this.position = this.position + this.length;
-    }
-
-    if (this.position < 0) {
-      this.position = 0;
-    }
-  };
-
-  FileWriter.prototype.truncate = function (size) {
-    var self = this;
-
-    if (self.readyState === FileWriter.WRITING) {
-      throw new webinos.util.CustomError("InvalidStateError");
-    }
-
-    self.readyState = FileWriter.WRITING;
-    self.dispatchEvent(new webinos.util.ProgressEvent("writestart"));
-
-    var truncate = self.rpc.createRPC(self.service, "truncate", { entry : self.entry, size : size });
-    self.rpc.executeRPC(truncate, function () {
-      self.length = size;
-      self.position = Math.min(self.position, size);
-
-      self.readyState = FileWriter.DONE;
-      self.dispatchEvent(new webinos.util.ProgressEvent("write"));
-      self.dispatchEvent(new webinos.util.ProgressEvent("writeend"));
-    }, function (error) {
-      self.error = error;
-      self.readyState = FileWriter.DONE;
-      self.dispatchEvent(new webinos.util.ProgressEvent("error"));
-      self.dispatchEvent(new webinos.util.ProgressEvent("writeend"));
-    });
-  };
-
-  // FileWriter.prototype.abort = function () {
-  //   if (this.readyState === FileWriter.DONE ||
-  //       this.readyState === FileWriter.INIT) return;
-
-  //   this.readyState = FileWriter.DONE;
-
-  //   // If there are any tasks from the object's FileSaver task source in one of
-  //   // the task queues, then remove those tasks.
-  //   // Terminate the write algorithm being processed.
-
-  //   this.error = new webinos.util.CustomError("AbortError");
-  //   this.dispatchEvent(new webinos.util.ProgressEvent("abort"));
-  //   this.dispatchEvent(new webinos.util.ProgressEvent("writeend"));
-  // };
-})(webinos.file);
-/*******************************************************************************
-*  Code contributed to the webinos project
-* 
-* Licensed under the Apache License, Version 2.0 (the "License");
-* you may not use this file except in compliance with the License.
-* You may obtain a copy of the License at
-*  
-*     http://www.apache.org/licenses/LICENSE-2.0
-*  
-* Unless required by applicable law or agreed to in writing, software
-* distributed under the License is distributed on an "AS IS" BASIS,
-* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-* See the License for the specific language governing permissions and
-* limitations under the License.
-* 
-* Copyright 2011 Alexander Futasz, Fraunhofer FOKUS
-******************************************************************************/
-(function() {
-
-/**
- * Webinos Geolocation service constructor (client side).
- * @constructor
- * @param obj Object containing displayName, api, etc.
- */
-WebinosGeolocation = function (obj) {
-	this.base = WebinosService;
-	this.base(obj);
-};
-
-WebinosGeolocation.prototype = new WebinosService;
-
-/**
- * To bind the service.
- * @param bindCB BindCallback object.
- */
-WebinosGeolocation.prototype.bindService = function (bindCB, serviceId) {
-	// actually there should be an auth check here or whatever, but we just always bind
-	this.getCurrentPosition = getCurrentPosition;
-	this.watchPosition = watchPosition;
-	this.clearWatch = clearWatch;
-	
-	if (typeof bindCB.onBind === 'function') {
-		bindCB.onBind(this);
-	};
-}
-
-/**
- * Retrieve the current position.
- * @param positionCB Success callback.
- * @param positionErrorCB Error callback.
- * @param positionOptions Optional options.
- */
-function getCurrentPosition(positionCB, positionErrorCB, positionOptions) { 
-	var rpc = webinos.rpcHandler.createRPC(this, "getCurrentPosition", positionOptions); // RPC service name, function, position options
-	webinos.rpcHandler.executeRPC(rpc, function (position) {
-		positionCB(position);
-	},
-	function (error) {
-		positionErrorCB(error);
-	});
-};
-
-var watchIdTable = {};
-
-/**
- * Register a listener for position updates.
- * @param positionCB Callback for position updates.
- * @param positionErrorCB Error callback.
- * @param positionOptions Optional options.
- * @returns Registered listener id.
- */
-function watchPosition(positionCB, positionErrorCB, positionOptions) {
-	var rpc = webinos.rpcHandler.createRPC(this, "watchPosition", [positionOptions]);
-
-	rpc.onEvent = function (position) {
-		positionCB(position);
-	};
-
-	rpc.onError = function (err) {
-		positionErrorCB(err);
-	};
-
-	webinos.rpcHandler.registerCallbackObject(rpc);
-	webinos.rpcHandler.executeRPC(rpc);
-
-	var watchId = parseInt(rpc.id, 16);
-	watchIdTable[watchId] = rpc.id;
-
-	return watchId;
-};
-
-/**
- * Clear a listener.
- * @param watchId The id as returned by watchPosition to clear.
- */
-function clearWatch(watchId) {
-	var _watchId = watchIdTable[watchId];
-	if (!_watchId) return;
-
-	var rpc = webinos.rpcHandler.createRPC(this, "clearWatch", [_watchId]);
-	webinos.rpcHandler.executeRPC(rpc);
-
-	delete watchIdTable[watchId];
-	webinos.rpcHandler.unregisterCallbackObject({api:_watchId});
-};
-
-})();
-/*******************************************************************************
-*  Code contributed to the webinos project
-* 
-* Licensed under the Apache License, Version 2.0 (the "License");
-* you may not use this file except in compliance with the License.
-* You may obtain a copy of the License at
-*  
-*     http://www.apache.org/licenses/LICENSE-2.0
-*  
-* Unless required by applicable law or agreed to in writing, software
-* distributed under the License is distributed on an "AS IS" BASIS,
-* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-* See the License for the specific language governing permissions and
-* limitations under the License.
-*
-* Author: Giuseppe La Torre (giuseppe.latorre@dieei.unict.it)
-* Author: Stefano Vercelli (stefano.vercelli@telecomitalia.it)
-* 
-******************************************************************************/
-
-(function() {
-
-    var sensorListeners = new Array();
-
-    /**
-     * Webinos Sensor service constructor (client side).
-     * @constructor
-     * @param obj Object containing displayName, api, etc.
-     */
-    Sensor = function(obj) {
-       this.base = WebinosService;
-       this.base(obj);
-    };
-    Sensor.prototype = new WebinosService;
-    
-    /**
-     * To bind the service.
-     * @param bindCB BindCallback object.
-     */
-    Sensor.prototype.bind = function(bindCB) {             
-        var self = this;
-        var rpc = webinos.rpcHandler.createRPC(this, "getStaticData", []);
-        
-        webinos.rpcHandler.executeRPC(rpc,
-            function (result){
-            
-                self.maximumRange = result.maximumRange;
-                self.minDelay = result.minDelay;
-                self.power = result.power;
-                self.resolution = result.resolution;
-                self.vendor = result.vendor;  
-                self.version = result.version; 
-            
-                if (typeof bindCB.onBind === 'function') {
-                    bindCB.onBind(this);
-                };
-            },
-            function (error){
-                
-            }
-        );
-
-    };
-    
-    Sensor.prototype.configureSensor = function(params, successHandler, errorHandler){
-        var rpc = webinos.rpcHandler.createRPC(this, 'configureSensor', params);
-        webinos.rpcHandler.executeRPC(rpc, function () {
-                successHandler();
-            },
-            function (error) {
-                errorHandler(error);
-            });
-    };
-
-    Sensor.prototype.addEventListener = function(eventType, eventHandler, capture) {
-        var rpc = webinos.rpcHandler.createRPC(this, "addEventListener", eventType);
-        sensorListeners.push([rpc.id, eventHandler, this.id]);
-        rpc.onEvent = function (sensorEvent) {
-            eventHandler(sensorEvent);
-        };
-        webinos.rpcHandler.registerCallbackObject(rpc);
-        webinos.rpcHandler.executeRPC(rpc);
-    };
-
-    Sensor.prototype.removeEventListener = function(eventType, eventHandler, capture) {
-        for (var i = 0; i < sensorListeners.length; i++) {
-            if (sensorListeners[i][1] == eventHandler && sensorListeners[i][2] == this.id) {
-                var arguments = new Array();
-                arguments[0] = sensorListeners[i][0];
-                arguments[1] = eventType;
-                var rpc = webinos.rpcHandler.createRPC(this, "removeEventListener", arguments);
-                webinos.rpcHandler.executeRPC(rpc);
-                sensorListeners.splice(i,1);
-                break;
-            }
-        }
-    };
-}());
-
-
-(function() {
-
-    var actuatorListeners = new Array();
-    
-    /**
-     * Webinos Actuator service constructor (client side).
-     * @constructor
-     * @param obj Object containing displayName, api, etc.
-     */
-    ActuatorModule = function(obj) {
-        this.base = WebinosService;
-        this.base(obj);
-    };
-    
-    ActuatorModule.prototype = new WebinosService();
-
-    /**
-     * To bind the service.
-     * @param bindCB BindCallback object.
-     */
-    ActuatorModule.prototype.bind = function(bindCB) {
-            var self = this;
-            var rpc = webinos.rpcHandler.createRPC(this, "getStaticData", []);
-            webinos.rpcHandler.executeRPC(rpc,
-                function (result){
-            
-                    self.range = result.range;
-                    self.unit = result.unit;
-                    self.vendor = result.vendor;
-                    self.version = result.version;
-                    if (typeof bindCB.onBind === 'function') {
-                        bindCB.onBind(self);
-                    }
-                },
-                function (error){
-                    
-                }
-            );
-    };
-    
-    /**
-     * Launches an application.
-     * @param successCallback Success callback.
-     * @param errorCallback Error callback.
-     * @param applicationID Application ID to be launched.
-     * @param params Parameters for starting the application.
-    */
-    ActuatorModule.prototype.setValue = function (value, successCB, errorCallback){
-        var rpc = webinos.rpcHandler.createRPC(this, "setValue", value);        
-        rpc.onEvent = function (actuatorEvent) {
-            successCB(actuatorEvent);
-        };
-        webinos.rpcHandler.registerCallbackObject(rpc);
-        webinos.rpcHandler.executeRPC(rpc);        
-    };
-    
-    ActuatorModule.prototype.addEventListener = function(eventType, eventHandler, capture) {
-        var rpc = webinos.rpcHandler.createRPC(this, "addEventListener", eventType);
-        actuatorListeners.push([rpc.id, eventHandler, this.id]);
-        rpc.onEvent = function (actuatorEvent) {
-            eventHandler(actuatorEvent);
-        };
-        webinos.rpcHandler.registerCallbackObject(rpc);
-        webinos.rpcHandler.executeRPC(rpc);
-    };
-
-    ActuatorModule.prototype.removeEventListener = function(eventType, eventHandler, capture) {
-        for (var i = 0; i < actuatorListeners.length; i++) {
-            if (actuatorListeners[i][1] == eventHandler && actuatorListeners[i][2] == this.id) {
-                var arguments = new Array();
-                arguments[0] = actuatorListeners[i][0];
-                arguments[1] = eventType;
-                var rpc = webinos.rpcHandler.createRPC(this, "removeEventListener", arguments);
-                webinos.rpcHandler.executeRPC(rpc);
-                actuatorListeners.splice(i,1);
-                break;
-            }
-        }
-    };
-}());
-
-/*******************************************************************************
  *  Code contributed to the webinos project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -3960,11 +4671,15 @@ function clearWatch(watchId) {
    * @param obj Object containing displayName, api, etc.
    */
   MediaContentModule = function (obj) {
-    this.base = WebinosService;
-    this.base(obj);
+    WebinosService.call(this, obj);
   };
 
-  MediaContentModule.prototype = new WebinosService;
+  // Inherit all functions from WebinosService
+  MediaContentModule.prototype = Object.create(WebinosService.prototype);
+  // The following allows the 'instanceof' to work properly
+  MediaContentModule.prototype.constructor = MediaContentModule;
+  // Register to the service discovery
+  _webinos.registerServiceConstructor("http://webinos.org/api/mediacontent", MediaContentModule);
 
   /**
    * To bind the service.
@@ -4085,7 +4800,11 @@ function clearWatch(watchId) {
     Media = function(obj) {
         WebinosService.call(this, obj);
     };
-
+    // Inherit all functions from WebinosService
+    Media.prototype = Object.create(WebinosService.prototype);
+    // The following allows the 'instanceof' to work properly
+    Media.prototype.constructor = Media;
+    // Register to the service discovery
     _webinos.registerServiceConstructor("http://webinos.org/api/mediaplay", Media);
 
     Media.prototype.bindService = function (bindCB, serviceId) {
@@ -4291,13 +5010,14 @@ function clearWatch(watchId) {
 	//Payment Module Functionality
 
 	PaymentModule = function (obj){      
-			this.base = WebinosService;
-			this.base(obj);
+			WebinosService.call(this, obj);
 	};
-	// This is the new way, but the old way (Public object accessible by servicedisco) works as well
-	//_webinos.registerServiceConstructor("http://webinos.org/api/payment", PaymentModule);
-
-	PaymentModule.prototype = new WebinosService;
+	// Inherit all functions from WebinosService
+	PaymentModule.prototype = Object.create(WebinosService.prototype);
+	// The following allows the 'instanceof' to work properly
+	PaymentModule.prototype.constructor = PaymentModule;
+	// Register to the service discovery
+	_webinos.registerServiceConstructor("http://webinos.org/api/payment", PaymentModule);
 
 	/**
 	 * To bind the service.
@@ -4328,339 +5048,1123 @@ function clearWatch(watchId) {
 		}
             
 }());
-//implementation at client side, includes RPC massage invokation
-/**
- * Interface for TV control and management.
- * 
- * 
- * The interface provides means to acquire a list of tv sources, channels and
- * their streams.
- * 
- * The TV channel streams can be displayed in HTMLVideoElement object
- * (http://dev.w3.org/html5/spec/video.html). Alternatively the API provides
- * means to control channel management of the native hardware TV, by allowing to
- * set a channel or watch for channel changes that are invoked otherwise.
- * 
- * The tv object is made available under the webinos namespace, i.e. webinos.tv.
- * 
- */
+/*******************************************************************************
+ *  Code contributed to the webinos project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ ******************************************************************************/
 (function() {
 
-	var TVDisplayManager, TVDisplaySuccessCB, TVTunerManager, TVSuccessCB, TVErrorCB, TVError, TVSource, Channel, ChannelChangeEvent;
-	var that = this;	
-	
-	/**
-	 * Interface to manage what's currently displayed on TV screen.
-	 * 
-	 * 
-	 * This interface is useful when an app doesn't want to show the broadcast
-	 * itself, but let the TV natively handle playback, i.e. not in a web
-	 * context. Useful to build an control interface that allows channel
-	 * switching.
-	 * 
-	 */
-	TVDisplayManager = function(){};
-
-	/**
-	 * Switches the channel natively on the TV (same as when a hardware remote
-	 * control would be used).
-	 * 
-	 */
-	TVDisplayManager.prototype.setChannel = function(channel, successCallback,
-			errorCallback) {
-		var rpc = webinos.rpcHandler.createRPC(that, "display.setChannel", arguments);
-		webinos.rpcHandler.executeRPC(rpc, function(params) {
-			successCallback(params);
-		}, function(error) {
-			if(errorCallback) errorCallback();
-		});
-		return;
+	PolicyManagementModule = function(obj) {
+		WebinosService.call(this, obj);
 	};
 	
-	//TODO: only internal temporarily use!
-	//This is only to bridge the missing Media Capture API and EPG functionality 
-	TVDisplayManager.prototype.getEPGPIC = function(channel, successCallback,
-			errorCallback) {
-		var rpc = webinos.rpcHandler.createRPC(that, "display.getEPGPIC", arguments);
-		webinos.rpcHandler.executeRPC(rpc, function(params) {
-			successCallback(params);
-		}, function(error) {
-			if(errorCallback) errorCallback();
-		});
-		return;
-	};
-
-	/**
-	 * Callback function when current channel changed successfully.
-	 * 
-	 */
-	TVDisplaySuccessCB = function() {
-		// TODO implement constructor logic if needed!
-
-	};
-	TVDisplaySuccessCB.prototype.onSuccess = function(channel) {
-		// TODO: Add your application logic here!
-
-		return;
-	};
-
-	// TODO: does not conform API Spec, but needs to be added!
-	TVDisplayManager.prototype.addEventListener = function(eventname,
-			channelchangeeventhandler, useCapture) {
-		var rpc = webinos.rpcHandler.createRPC(that, "display.addEventListener",
-				arguments);
-
-		rpc.onchannelchangeeventhandler = function(params,
-				successCallback, errorCallback) {
-
-			channelchangeeventhandler(params);
-
-		};
-
-		// register the object as being remotely accessible
-		webinos.rpcHandler.registerCallbackObject(rpc);
-
-		webinos.rpcHandler.executeRPC(rpc);
-		return;
-	};
-
-	/**
-	 * Get a list of all available TV tuners.
-	 * 
-	 */
-	TVTunerManager = function(){};
-
-	/**
-	 * Get a list of all available TV tuners.
-	 * 
-	 */
-	TVTunerManager.prototype.getTVSources = function(successCallback,
-			errorCallback) {
-		var rpc = webinos.rpcHandler.createRPC(that, "tuner.getTVSources", arguments);
-		webinos.rpcHandler.executeRPC(rpc, function(params) {
-			successCallback(params);
-		}, function(error) {
-		});
-		return;
-	};
-
-	/**
-	 * Callback for found TV tuners.
-	 * 
-	 */
-	TVSuccessCB = function() {
-		// TODO implement constructor logic if needed!
-
-	};
-
-	/**
-	 * Callback that is called with the found TV sources.
-	 * 
-	 */
-	TVSuccessCB.prototype.onSuccess = function(sources) {
-		// TODO: Add your application logic here!
-
-		return;
-	};
-
-	/**
-	 * Error callback for errors when trying to get TV tuners.
-	 * 
-	 */
-	TVErrorCB = function() {
-		// TODO implement constructor logic if needed!
-
-	};
-
-	/**
-	 * Callback that is called when an error occures while getting TV sources
-	 * 
-	 */
-	TVErrorCB.prototype.onError = function(error) {
-		// TODO: Add your application logic here!
-
-		return;
-	};
-
-	/**
-	 * Error codes.
-	 * 
-	 */
-	TVError = function() {
-		// TODO implement constructor logic if needed!
-
-		// TODO initialize attributes
-
-		this.code = Number;
-	};
-
-	/**
-	 * An unknown error.
-	 * 
-	 */
-	TVError.prototype.UNKNOWN_ERROR = 0;
-
-	/**
-	 * Invalid input channel.
-	 * 
-	 */
-	TVError.prototype.ILLEGAL_CHANNEL_ERROR = 1;
-
-	/**
-	 * Code.
-	 * 
-	 */
-	TVError.prototype.code = Number;
-
-	/**
-	 * TV source: a list of channels with a name.
-	 * 
-	 */
-	TVSource = function() {
-		// TODO implement constructor logic if needed!
-
-		// TODO initialize attributes
-
-		this.name = String;
-		this.channelList = Number;
-	};
-
-	/**
-	 * The name of the source.
-	 * 
-	 * 
-	 * The name should describe the kind of tuner this source represents, e.g.
-	 * DVB-T, DVB-C.
-	 * 
-	 */
-	TVSource.prototype.name = String;
-
-	/**
-	 * List of channels for this source.
-	 * 
-	 */
-	TVSource.prototype.channelList = Number;
-
-	/**
-	 * The Channel Interface
-	 * 
-	 * 
-	 * Channel objects provide access to the video stream.
-	 * 
-	 */
-	Channel = function() {
-		this.channelType = Number;
-		this.name = String;
-		this.longName = String;
-		this.stream = "new Stream()";
-		this.tvsource = new TVSource();
-	};
-
-	/**
-	 * Indicates a TV channel.
-	 * 
-	 */
-	Channel.prototype.TYPE_TV = 0;
-
-	/**
-	 * Indicates a radio channel.
-	 * 
-	 */
-	Channel.prototype.TYPE_RADIO = 1;
-
-	/**
-	 * The type of channel.
-	 * 
-	 * 
-	 * Type of channel is defined by one of the TYPE_* constants defined above.
-	 * 
-	 */
-	Channel.prototype.channelType = Number;
-
-	/**
-	 * The name of the channel.
-	 * 
-	 * 
-	 * The name of the channel will typically be the call sign of the station.
-	 * 
-	 */
-	Channel.prototype.name = String;
-
-	/**
-	 * The long name of the channel.
-	 * 
-	 * 
-	 * The long name of the channel if transmitted. Can be undefined if not
-	 * available.
-	 * 
-	 */
-	Channel.prototype.longName = String;
-
-	/**
-	 * The video stream.
-	 * 
-	 * 
-	 * This stream is a represents a valid source for a HTMLVideoElement.
-	 * 
-	 */
-	Channel.prototype.stream = null;
-
-	/**
-	 * The source this channels belongs too.
-	 * 
-	 */
-	Channel.prototype.tvsource = null;
-
-	/**
-	 * Event that fires when the channel is changed.
-	 * 
-	 * 
-	 * Changing channels could also be invoked by other parties, e.g. a hardware
-	 * remote control. A ChannelChange event will be fire in these cases which
-	 * provides the channel that was switched to.
-	 * 
-	 */
-	ChannelChangeEvent = function() {
-		// TODO implement constructor logic if needed!
-
-		// TODO initialize attributes
-
-		this.channel = new Channel();
-	};
-
-	/**
-	 * The new channel.
-	 * 
-	 */
-	ChannelChangeEvent.prototype.channel = null;
-
-	/**
-	 * Initializes a new channel change event.
-	 * 
-	 */
-	ChannelChangeEvent.prototype.initChannelChangeEvent = function(type,
-			bubbles, cancelable, channel) {
-		// TODO: Add your application logic here!
-
-		return;
-	};
-	
-	/**
-	 * Access to tuner and display managers.
-	 * 
-	 */
-	TVManager = function(obj) {
-		this.base = WebinosService;
-		this.base(obj);
-		that = this;
-		
-		this.display = new TVDisplayManager(obj);
-		this.tuner = new TVTunerManager(obj);
-	};
-	TVManager.prototype = new WebinosService;
+	// Inherit all functions from WebinosService
+	PolicyManagementModule.prototype = Object.create(WebinosService.prototype);	
+	// The following allows the 'instanceof' to work properly
+	PolicyManagementModule.prototype.constructor = PolicyManagementModule;
+	// Register to the service discovery
+	_webinos.registerServiceConstructor("http://webinos.org/core/policymanagement", PolicyManagementModule);
 
 
-}());
+    PolicyManagementModule.prototype.bindService = function (bindCB, serviceId) {
+        this.policy = policy;
+        this.policyset = policyset;
+        this.getPolicySet = getPolicySet;
+        this.testPolicy = testPolicy;
+        this.testNewPolicy = testNewPolicy;
+        this.save = save;
+
+        if (typeof bindCB.onBind === 'function') {
+            bindCB.onBind(this);
+        };
+    }
+
+
+    var policy = function(ps, id, combine, description){
+
+        var _ps = ps;
+        if(ps)
+            _ps = ps;
+        else{
+            _ps = {};
+            _ps['$'] = {};
+            _ps['$']["id"] = (id) ? id : getNewId();
+        }
+
+        if(combine)
+            _ps['$']["combine"] = combine;
+        if(description)
+            _ps['$']["description"] = description;
+
+        function getNewId(type) {
+            return new Date().getTime();
+        };
+
+        this.getInternalPolicy = function(){
+            return _ps;
+        };
+
+        //this.updateRule = function(ruleId, effect, updatedCondition){
+        this.updateRule = function(ruleId, key, value){
+            if(!_ps) {
+                return null;
+            }
+
+//            if(effect != 'permit' && effect != 'prompt-oneshot' && effect != 'prompt-session' && effect != 'prompt-blanket' && effect != 'deny') {
+//                effect = "";
+//            }
+
+            //console.log("Effect :: "+effect);
+            var policy = _ps;
+            var rule;
+            var count=0;
+            for(var i in policy["rule"]) {
+                if(policy["rule"][i]['$']["id"] == ruleId) {
+                    rule = policy["rule"][i];
+                    break;
+                }
+                count++;
+            }
+
+            if(rule){
+
+
+                if(key == "effect"){
+                    if(value)
+                        rule['$']["effect"] = value;
+                    else
+                        rule['$']["effect"] = "permit";
+                }
+                else if(key == "condition"){
+
+                    if(value){
+                        if(rule.condition){
+                            //check first child
+                            var parent = rule["condition"];
+
+                            var tmp = parent[0];
+                            console.log(JSON.stringify(rule["condition"]));
+                            if(tmp['$']["id"] == value['$']["id"]){
+                                parent[0] = value;
+                                return;
+                            }
+
+                            //check other children
+                            while(true){
+                                if(tmp.condition && value){
+
+                                    if(tmp.condition[0]['$']["id"] == value['$']["id"]){
+                                        tmp.condition[0] = value;
+                                        return;
+                                    }
+                                    else
+                                        tmp = tmp.condition;
+                                }
+                                else
+                                    break;
+                            }
+                        }
+                        else{
+                            rule["condition"] = [value];
+                        }
+                    }
+                    else{
+                        if(rule.condition){
+                            rule.condition = undefined;
+                        }
+                        else
+                        {
+                            ;
+                        }
+                    }
+                }
+/*
+                if(!updatedCondition)
+                    if(rule["condition"])
+                        rule["condition"] = undefined;
+
+                else if(!rule.condition){
+                    console.log("No condition");
+                    rule["condition"] = new Array();
+                    rule["condition"][0] = updatedCondition;
+                }
+
+                else{
+
+                    //check first child
+                    var parent = rule["condition"];
+
+                    var tmp = parent[0];
+
+                    if(tmp['$']["id"] == updatedCondition['$']["id"]){
+                        parent[0] = updatedCondition;
+                        return;
+                    }
+
+                    //check other children
+                    while(true){
+                        if(tmp.condition && updatedCondition){
+                            if(tmp.condition[0]['$']["id"] == updatedCondition['$']["id"]){
+                                tmp.condition[0] = updatedCondition;
+                                return;
+                            }
+                            else
+                                tmp = tmp.condition;
+                        }
+                        else
+                            break;
+                    }
+                }*/
+            }
+        }
+
+        this.addRule = function(newRuleId, effect, newCondition, rulePosition){
+            if(!_ps) {
+                return null;
+            }
+
+            //Check if effect is valid value (deny is included in default rule)
+            if(effect != 'permit' && effect != 'prompt-oneshot' && effect != 'prompt-session' && effect != 'prompt-blanket' && effect != 'deny') {
+                effect = "permit";
+            }
+
+            //console.log("Effect :: "+effect);
+            var policy = _ps;
+
+            var rule;
+            for(var i in policy['rule']) {
+                if(policy['rule'][i]['$']['effect'] == effect) {
+                    rule = policy['rule'][i];
+                    break;
+                }
+            }
+            //console.log("rule :: "+rule);
+
+            if(!rule){
+                var id = (newRuleId) ? newRuleId : new Date().getTime();
+                rule = {"$": {"id" : id, "effect" : effect}};
+                var position = 0;
+                if(rulePosition && (rulePosition<0 || policy["rule"].length == 0))
+                    policy["rule"].length;
+                if(!rulePosition && policy["rule"])
+                    position = policy["rule"].length;
+
+                console.log("position : "+position);
+                if(!policy["rule"])
+                    policy["rule"] = [rule];
+                else
+                    policy["rule"].splice(position, 0, rule);
+            }
+
+            if(newCondition){
+                if(!rule.condition){
+                    console.log("No condition");
+                    rule["condition"] = [newCondition];
+                }
+                else{
+                    var tmp = rule["condition"][0];
+                    while(true){
+                        if(tmp.condition){
+                            tmp = tmp.condition[0];
+                        }
+                        else
+                            break;
+                    }
+
+                    tmp["condition"] = [newCondition];
+                }
+            }
+        };
+
+        this.removeRule = function(ruleId) {
+            if(!_ps) {
+                return null;
+            }
+            if(ruleId == null) {
+                return null;
+            }
+
+            var policy = _ps;
+
+            //console.log("PRE : " + JSON.stringify(policy["rule"]));
+            if(policy["rule"]){
+                var index = -1;
+                var count = 0;
+
+                for(var i in policy["rule"]){
+                    if(policy["rule"][i]["$"]["id"] && policy["rule"][i]["$"]["id"] == ruleId){
+                        index = i;
+                        //break;
+                    }
+                    count ++;
+                }
+                if(index != -1){
+                    console.log("Removing rule " + index);
+                    policy["rule"].splice(index,1);
+                    if(count == 1)
+                        policy["rule"] = undefined;
+                }
+
+
+            }
+            else
+                console.log("No rules");
+        };
+
+        this.addSubject = function(newSubjectId, matches){
+            if(!_ps) {
+                return null;
+            }
+
+            //var policy = (policyId) ? getPolicyById(_ps, policyId) : _ps;
+            var policy = _ps;
+
+            if(policy == null) {
+                return null;
+            }
+
+            var id = (newSubjectId) ? newSubjectId : new Date().getTime();
+            var newsubj = {"$" : {"id" : id} , "subject-match" : [] };
+
+            for(var i in matches){
+                if(i == "subject-match")
+                    newsubj["subject-match"].push(matches[i]);
+            }
+
+            if(!policy.target)
+                policy.target = [{}];
+            if(!policy.target[0]["subject"])
+                policy.target[0]["subject"] = [];
+
+            //console.log(JSON.stringify(policy.target[0]));
+            for(var i =0; i<policy.target[0]["subject"].length; i++){
+                    if(policy.target[0]["subject"][i]['$']["id"] == newSubjectId){
+                        console.log("A subject with " + newSubjectId + " is already present");
+                        return;
+                    }
+                }
+            policy.target[0]["subject"].push(newsubj);
+            //console.log(JSON.stringify(policy.target[0]));
+
+        };
+/*
+        this.getSubjects = function(policyId){
+            if(!_ps) {
+                return null;
+            }
+
+            var policy = (policyId) ? getPolicyById(_ps, policyId) : _ps;
+
+            if(policy == null) {
+                return null;
+            }
+            var subjects = policy.target[0]["subject"];
+
+            return subjects;
+        };*/
+
+        this.removeSubject = function(subjectId) {
+            if(!_ps) {
+                return null;
+            }
+            /*
+            if(policyId == null) {
+                return;
+            }*/
+
+            //var policy = (policyId) ? getPolicyById(_ps, policyId) : _ps;
+            var policy = _ps;
+
+            //console.log(policy);
+
+            var count = 0;
+
+            if(policy.target && policy.target[0] && policy.target[0]["subject"]){
+                var index = -1;
+                for(var i in policy.target[0]["subject"]){
+                    console.log(policy.target[0]["subject"][i]["$"]["id"]);
+                    if(policy.target[0]["subject"][i]["$"]["id"] && policy.target[0]["subject"][i]["$"]["id"] == subjectId){
+                        index = i;
+                        //break;
+                    }
+                    count++;
+                }
+                if(index != -1){
+                    console.log("remove "+index);
+                    policy.target[0]["subject"].splice(index,1);
+                }
+                if(count == 1)
+                    //policy.target = [];
+                    policy.target = undefined;
+            }
+            //console.log("AFTER : " + JSON.stringify(policy["rule"]));
+        };
+
+        this.updateSubject = function(subjectId, matches){
+            if(!_ps) {
+                return null;
+            }
+
+            //var policy = (policyId) ? getPolicyById(_ps, policyId) : _ps;
+            var policy = _ps;
+
+            if(policy == null) {
+                return null;
+            }
+            if(policy.target && policy.target[0] && policy.target[0]["subject"]){
+                var subjects = policy.target[0]["subject"];
+                for(var i in subjects){
+                    if(subjects[i]['$']["id"] == subjectId)
+                        subjects[i]["subject-match"] = matches["subject-match"];
+                }
+            }
+        };
+
+        this.updateAttribute = function(key, value){
+            if (!key) {
+                return;
+            }
+            if (key == "combine") {
+                _ps['$']["combine"] = value;
+            }
+            else if (key == "description") {
+                _ps['$']["description"] = value;
+            }
+
+        };
+
+        this.toJSONObject = function(){
+            return _ps;
+        };
+    };
+
+    var policyset = function(ps ,type, basefile, fileId, id, combine, description) {
+        var _type = type;
+        var _basefile = basefile;
+        var _fileId = fileId;
+
+        var _parent;
+
+        //var id = (newSubjectId) ? newSubjectId : new Date().getTime();
+        var _ps = ps;
+        if(ps)
+            _ps = ps;
+        else{
+            _ps = {};
+            _ps['$'] = {};
+            _ps['$']["id"] = (id) ? id : getNewId();
+        }
+
+        if(combine)
+            _ps['$']["combine"] = combine;
+        if(description)
+            _ps['$']["description"] = description;
+
+        this.getBaseFile = function(){
+            return _basefile;
+        };
+
+        this.getFileId = function(){
+            return _fileId;
+        };
+
+        function getNewId(type) {
+            return new Date().getTime();
+        }
+
+        function getPolicyById(policySet, policyId) {
+            //console.log('getPolicyById - policySet is '+JSON.stringify(policySet));
+            /*
+            if(policyId == null || (policySet['$']['id'] && policySet['$']['id'] == policyId)) {
+                return policySet;
+            }
+            */
+            if(policySet['policy']) {
+                for(var j in policySet['policy']) {
+                    if(policySet['policy'][j]['$']['id'] == policyId) {
+                        return policySet['policy'][j];
+                    }
+                }
+            }
+            if(policySet['policy-set']) {
+                for(var j in policySet['policy-set']) {
+                    if(policySet['policy-set'][j]['$']['id'] == policyId) {
+                        return policySet['policy-set'][j];
+                    }
+                    var tmp = getPolicyById(policySet['policy-set'][j], policyId);
+                    if(tmp != null) {
+                        return tmp;
+                    }
+                }
+            }
+            return null;
+        };
+
+        function getPolicySetById(policySet, policyId) {
+            //console.log('getPolicyById - policySet is '+JSON.stringify(policySet));
+
+            if(policySet['policy-set']) {
+                for(var j in policySet['policy-set']) {
+                    if(policySet['policy-set'][j]['$']['id'] == policyId) {
+                        return policySet['policy-set'][j];
+                    }
+                    var tmp = getPolicyById(policySet['policy-set'][j], policyId);
+                    if(tmp != null) {
+                        return tmp;
+                    }
+                }
+            }
+            return null;
+        };
+
+        function getPolicySetBySubject(policySet, subject) {
+            var res = {'generic':[], 'matched':[]};
+            if(policySet['policy-set']) {
+                for(var j in policySet['policy-set']) {
+                    var checkRes = checkPolicySetSubject(policySet['policy-set'][j] , subject);
+                    if (checkRes == 0){
+                        res['generic'].push(new policyset(policySet['policy-set'][j], "policy-set"));
+                    } else if (checkRes == 1){
+                        res['matched'].push(new policyset(policySet['policy-set'][j], "policy-set"));
+                    }
+                    if (policySet['policy-set'][j]['policy-set']){
+                        var tmpRes = getPolicySetBySubject(policySet['policy-set'][j], subject);
+                        for (var e in tmpRes){
+                            if (res[e] && tmpRes[e].length > 0){
+                                res[e] = res[e].concat(tmpRes[e]);
+                            }
+                        }
+                    }
+                }
+            }
+            return res;
+        }
+
+        function checkPolicySetSubject(policySet, subject) {
+            psSubject = null;
+            var tempSubject = JSON.parse(JSON.stringify(subject));
+            try{
+                psSubject = policySet['target'][0]['subject'];
+            }
+            catch(err) {
+                return 0; //subject not specified (it's still a subject match)
+            }
+            if (psSubject){
+                for (var i in psSubject) {
+                    temp = null;
+                    try {
+                        temp = psSubject[i]['subject-match'][0]['$']['match'];
+                    } catch (err) { continue; }
+
+                    // Change the string of psSubjectMatch_i to array psSubjectMatch_i.
+                    var psSubjectMatch_i = temp.split(',');
+
+
+                    if(psSubjectMatch_i.length > 1) {
+                        for(var j in psSubjectMatch_i) {
+                            // psSubjectMatch_i_j = null;
+                            try {
+                                var psSubjectMatch_i_j = psSubjectMatch_i[j];
+                            } catch(err) { continue; }
+
+                            var index = tempSubject.indexOf(psSubjectMatch_i_j);
+                            if (index > -1){
+                                //numMatchedSubjects++;
+                                tempSubject.splice(index,1);
+                            }
+                        }
+                    } else {
+                        var index = tempSubject.indexOf(psSubjectMatch_i[0]);
+                        if (index > -1) {
+                            tempSubject.splice(index,1);
+                        }
+                    }
+                }
+                if (tempSubject.length == 0){
+                    return 1; //subject matches
+                }
+            }
+            return -1; //subject doesn't match
+        }
+
+        function getPolicyBySubject(policySet, subject) {
+            var res = {'generic':[], 'matched':[]};
+            // if(policySet['policy'] && checkPolicySetSubject(policySet, subject) > -1) {
+            if(policySet['policy']) {
+                for(var j in policySet['policy']) {
+                    var tempSubject = JSON.parse(JSON.stringify(subject));
+                    pSubject = null;
+                    try{
+                        pSubject = policySet['policy'][j]['target'][0]['subject'];
+                    }
+                    catch(err) {
+                        res['generic'].push(new policy(policySet['policy'][j]));
+                    }
+                    if (pSubject){
+                        // var numMatchedSubjects = 0;
+                        for (var i in pSubject) {
+                            temp = null;
+                            // pSubjectMatch_i = null;
+                            try {
+                                // pSubjectMatch_i = pSubject[i]['subject-match'][0]['$']['match'];
+                                temp = pSubject[i]['subject-match'][0]['$']['match'];
+                            } catch (err) { continue; }
+
+                            var pSubjectMatch_i = temp.split(',');
+                            if (pSubjectMatch_i.length > 1) {
+
+                                for (var m in pSubjectMatch_i) {
+                                    // pSubjectMatch_i_j = null;
+                                    try {
+                                        var pSubjectMatch_i_j = pSubjectMatch_i[m];
+                                    } catch(err) { continue; }
+
+                                    var index = tempSubject.indexOf(pSubjectMatch_i_j);
+                                    if (index > -1){
+                                        // numMatchedSubjects++;
+                                        tempSubject.splice(index,1);
+                                    }
+                                }
+
+                            } else {
+                                var index = tempSubject.indexOf(pSubjectMatch_i[0]);
+                                if (index > -1){
+                                    // numMatchedSubjects++;
+                                    tempSubject.splice(index,1);
+                                }
+                            }
+                            if (tempSubject.length == 0) {
+                                res['matched'].push(new policy(policySet['policy'][j]));
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+
+            /*if(policySet['policy-set']) {
+                for(var j in policySet['policy-set']) {
+                    var tmpRes = getPolicyBySubject(policySet['policy-set'][j], subject);
+                    for (var e in tmpRes){
+                        if (res[e] && tmpRes[e].length > 0){
+                            res[e] = res[e].concat(tmpRes[e]);
+                        }
+                    }
+                }
+            }*/
+            return res;
+        }
+
+        this.removeSubject = function(subjectId, policyId) {
+            if(!_ps) {
+                return null;
+            }
+            if(policyId == null) {
+                return;
+            }
+
+            //var policy = (policyId) ? getPolicyById(_ps, policyId) : _ps;
+            var policy = _ps;
+
+            //console.log(policy);
+
+            if(policy.target[0]["subject"]){
+                var index = -1;
+                for(var i in policy.target[0]["subject"]){
+                    console.log(policy.target[0]["subject"][i]["$"]["id"]);
+                    if(policy.target[0]["subject"][i]["$"]["id"] && policy.target[0]["subject"][i]["$"]["id"] == subjectId){
+                        index = i;
+                        break;
+                    }
+                }
+                if(index != -1){
+                    console.log("remove "+index);
+                    policy.target[0]["subject"].splice(index,1);
+                }
+            }
+            //console.log("AFTER : " + JSON.stringify(policy["rule"]));
+        };
+
+
+        function removePolicySetById(policySet, policySetId) {
+            if(policySet['policy-set']) {
+                for(var j in policySet['policy-set']) {
+                    if(policySet['policy-set'][j]['$']['id'] == policySetId) {
+                        policySet['policy-set'].splice(j, 1);
+                        return true;
+                    }
+                    /*if(removePolicyById(policySet['policy-set'][j], policyId)) {
+                        return true;
+                    }*/
+                }
+            }
+            return false;
+        }
+
+        function removePolicyById(policySet, policyId) {
+            //console.log('removePolicyById - id is '+policyId+', set is '+JSON.stringify(policySet));
+            if(policySet['policy']) {
+                for(var j in policySet['policy']) {
+                    if(policySet['policy'][j]['$']['id'] == policyId) {
+                        policySet['policy'].splice(j, 1);
+                        return true;
+                    }
+                }
+            }
+            /*
+            if(policySet['policy-set']) {
+                for(var j in policySet['policy-set']) {
+                    if(policySet['policy-set'][j]['$']['id'] == policyId) {
+                        policySet['policy-set'].splice(j, 1);
+                        return true;
+                    }
+                    if(removePolicyById(policySet['policy-set'][j], policyId)) {
+                        return true;
+                    }
+                }
+            }*/
+            return false;
+        }
+
+        this.getInternalPolicySet = function(){
+            return _ps;
+        };
+
+        this.createPolicy = function(policyId, combine, description){
+//        function createPolicy(policyId, combine, description){
+            return new policy(null, policyId, combine, description);
+        };
+
+        this.createPolicySet = function(policySetId, combine, description){
+       //function createPolicySet(policySetId, combine, description){
+            return new policyset(null, policySetId, _basefile, _fileId, policySetId, combine, description);
+        };
+
+
+      this.addPolicy = function(newPolicy, newPolicyPosition){
+//      this.addPolicy = function(policyId, combine, description, newPolicyPosition, succCB){
+//      var newPolicy = createPolicy(policyId, combine, description);
+            if(!_ps)
+                return null;
+
+            if(!_ps["policy"])
+                _ps["policy"] = new Array();
+            else{
+                for(var i =0; i<_ps["policy"].length; i++){
+                    console.log(JSON.stringify(newPolicy.getInternalPolicy()));
+                    if(_ps["policy"][i]['$']["id"] == newPolicy.getInternalPolicy()['$']["id"]){
+                        console.log("A policy with " + newPolicy.getInternalPolicy()['$']["id"] + " is already present");
+                        return;
+                    }
+                }
+            }
+            var position = (newPolicyPosition == undefined || newPolicyPosition<0 || _ps["policy"].length == 0) ? _ps["policy"].length : newPolicyPosition;
+            _ps['policy'].splice(position, 0, newPolicy.getInternalPolicy());
+            //succCB(newPolicy);
+
+        };
+
+        this.addPolicySet = function(newPolicySet, newPolicySetPosition){
+        //this.addPolicySet = function(policySetId, combine, description, newPolicySetPosition){
+            //var newPolicySet = createPolicySet(policySetId, combine, description);
+            if(!_ps)
+                return null;
+
+            if(!_ps['policy-set'])
+                _ps['policy-set'] = new Array();
+            else{
+                for(var i =0; i<_ps['policy-set'].length; i++){
+                    console.log(JSON.stringify(newPolicySet.getInternalPolicySet()));
+                    if(_ps['policy-set'][i]['$']['id'] == newPolicySet.getInternalPolicySet()['$']['id']){
+                        console.log("A policyset with " + newPolicySet.getInternalPolicySet()['$']['id'] + " is already present");
+                        return;
+                    }
+                }
+            }
+            var position = (newPolicySetPosition == undefined || newPolicySetPosition<0 || _ps['policy-set'].length == 0) ? _ps['policy-set'].length : newPolicySetPosition;
+            _ps['policy-set'].splice(position, 0, newPolicySet.getInternalPolicySet());
+            /*
+            if(!_ps)
+                return null;
+
+            if(!_ps["policy-set"])
+                _ps["policy-set"] = new Array();
+
+            var position = (newPolicySetPosition == undefined || newPolicySetPosition<0 || _ps["policy-set"].length == 0) ? _ps["policy-set"].length : newPolicySetPosition;
+//            var position = (!newPolicySetPosition || _ps["policy-set"].length == 0) ? 0 : newPolicySetPosition;
+
+            _ps['policy-set'].splice(position, 0, newPolicySet.getInternalPolicySet());
+            */
+        };
+
+
+
+        // add subject to policyset
+        this.addSubject = function(newSubjectId, matches){
+            if(!_ps) {
+                return null;
+            }
+
+            //var policy = (policyId) ? getPolicyById(_ps, policyId) : _ps;
+            var policy = _ps;
+
+            if(policy == null) {
+                return null;
+            }
+
+            var id = (newSubjectId) ? newSubjectId : new Date().getTime(); //Ecco perchè inserendo ID vuoto metto la data
+            var newsubj = {"$" : {"id" : id} , "subject-match" : [] };
+
+            for(var i in matches){
+                if(i == "subject-match")
+                    newsubj["subject-match"].push(matches[i]);
+            }
+            if(!policy.target)
+                policy.target = [{}];
+
+            if(!policy.target[0]["subject"])
+                policy.target[0]["subject"] = [];
+
+            //console.log(JSON.stringify(policy.target[0]));
+            for(var i =0; i<policy.target[0]["subject"].length; i++){
+                    if(policy.target[0]["subject"][i]['$']["id"] == newSubjectId){
+                        console.log("A subject with " + newSubjectId + " is already present");
+                        return;
+                    }
+                }
+            policy.target[0]["subject"].push(newsubj);
+            //console.log(JSON.stringify(policy.target[0]));
+
+        };
+
+        this.getPolicy = function(policyId){
+            if (policyId){
+                if(typeof policyId == "object" && policyId.length){
+                    var res = getPolicyBySubject(_ps, policyId);
+                    var tempSubject = replaceId(policyId);
+                    // Because of the default copying action, the tempSubject can never be zero.
+                    if ((tempSubject.indexOf("http://webinos.org/subject/id/PZ-Owner") != -1) || (tempSubject.indexOf("http://webinos.org/subject/id/known") != -1 )) {
+                        var res2 = getPolicyBySubject(_ps, tempSubject);
+                        var res = joinResult(res, res2);
+                    }
+                    return res;
+                } else {
+                    var tmp = getPolicyById(_ps, policyId);
+                    if(tmp){
+                        return new policy(tmp);
+                    }
+                }
+            }
+        };
+
+        this.getPolicySet = function(policySetId){
+            if(policySetId){
+                if(typeof policySetId == "object" && policySetId.length){
+                    var res = getPolicySetBySubject(_ps, policySetId);
+                    var tempSubject = replaceId(policySetId);
+                    if ((tempSubject.indexOf("http://webinos.org/subject/id/PZ-Owner") != -1) || (tempSubject.indexOf("http://webinos.org/subject/id/known") !=-1 )) {
+                        var res2 = getPolicySetBySubject(_ps, tempSubject);
+                        var res = joinResult(res, res2);
+                    }
+                    return res;
+                } else {
+                    var tmp = getPolicySetById(_ps, policySetId);
+                    if(tmp){
+                        return new policyset(tmp, "policy-set", _basefile, _fileId);
+                    }
+                }
+            }
+        };
+
+/*
+        this.getSubjects = function(policyId){
+            if(!_ps) {
+                return null;
+            }
+
+            var policy = (policyId) ? getPolicyById(_ps, policyId) : _ps;
+
+            if(policy == null) {
+                return null;
+            }
+            var subjects = policy.target[0]["subject"];
+
+            return subjects;
+        };
+*/
+        this.updateSubject = function(subjectId, matches){
+        //this.updateSubject = function(subjectId, matches/*, policyId*/ ){
+            if(!_ps) {
+                return null;
+            }
+
+            //var policy = (policyId) ? getPolicyById(_ps, policyId) : _ps;
+            var policy = _ps;
+
+            if(policy == null) {
+                return null;
+            }
+
+            if(policy.target && policy.target[0] && policy.target[0]["subject"]){
+                var subjects = policy.target[0]["subject"];
+                for(var i in subjects){
+                    console.log(subjects[i]['$']["id"]);
+                    if(subjects[i]['$']["id"] == subjectId)
+                        subjects[i]["subject-match"] = matches["subject-match"];
+                }
+            }
+        };
+
+        this.removePolicy = function(policyId){
+            if(!_ps) {
+                return null;
+            }
+            if(policyId == null) {
+                return;
+            }
+            if (!_ps['policy']) {
+                return null;
+            }
+            removePolicyById(_ps, policyId);
+            if (_ps['policy'].length == 0) {
+                _ps['policy'] = undefined;
+            }
+        };
+
+        this.removePolicySet = function(policySetId){
+            if(!_ps) {
+                return null;
+            }
+            if(policySetId == null) {
+                return;
+            }
+            if (!_ps['policy-set']) {
+                return null;
+            }
+            removePolicySetById(_ps, policySetId);
+            console.log(_ps['policy-set']);
+            if (_ps['policy-set'].length == 0) {
+                _ps['policy-set'] = undefined;
+            }
+        };
+
+
+
+        this.removeSubject = function(subjectId) {
+            if(!_ps) {
+                return null;
+            }
+            /*
+            if(policyId == null) {
+                return;
+            }*/
+
+            //var policy = (policyId) ? getPolicyById(_ps, policyId) : _ps;
+            var policy = _ps;
+
+            //console.log(policy);
+
+            var count = 0;
+
+            if(policy.target && policy.target[0] && policy.target[0]["subject"]){
+                var index = -1;
+                for(var i in policy.target[0]["subject"]){
+                    console.log(policy.target[0]["subject"][i]["$"]["id"]);
+                    if(policy.target[0]["subject"][i]["$"]["id"] && policy.target[0]["subject"][i]["$"]["id"] == subjectId){
+                        index = i;
+                        //break;
+                    }
+                    count++;
+                }
+                if(index != -1){
+                    console.log("remove "+index);
+                    policy.target[0]["subject"].splice(index,1);
+                    if(count == 1)
+                        policy.target = undefined;
+                }
+
+            }
+            //console.log("AFTER : " + JSON.stringify(policy["rule"]));
+        };
+
+        this.updateAttribute = function(key, value){
+          if(key == "combine" || key == "description"){
+            _ps['$'][key] = value;
+          }
+        };
+        /*function(policySetId, combine, description){
+            if(policySetId)
+                _ps['$']["id"] = policySetId;
+            if(combine)
+                _ps['$']["combine"] = combine;
+            if(description)
+                _ps['$']["description"] = description;};*/
+
+
+        this.toJSONObject = function(){
+            return _ps;
+            //return "ID : " + _id + ", DESCRIPTION : " + _ps.$.description + ", PATH : " + _basefile;
+        }
+    }
+
+    var policyFiles = new Array();
+
+    function getPolicySet(policyset_id, success, error) {
+        var successCB = function(params){
+            var ps = new policyset(params, "policy-set", policyset_id) ;
+            console.log(ps);
+            success(ps);
+        }
+
+        if(!policyFiles || policyFiles.length == 0) {
+            var rpc = webinos.rpcHandler.createRPC(this, "getPolicy", [policyset_id]); // RPC service name, function, position options
+            webinos.rpcHandler.executeRPC(rpc
+                , function (params) {
+                    successCB(params);
+                }
+                , function (error) {
+                    console.log(error);
+                }
+            );
+        }
+        else {
+            success(new policyset(policyFiles[policyset_id].content, "policy-set", policyset_id));
+        }
+    };
+
+    function save(policyset, successCB, errorCB) {
+        var rpc = webinos.rpcHandler.createRPC(this, "setPolicy", [policyset.getBaseFile(), JSON.stringify(policyset.toJSONObject())]);
+        webinos.rpcHandler.executeRPC(rpc
+            , function (params) {
+                successCB(params);
+            }
+            , function (error) {
+                errorCB(error);
+            }
+        );
+    };
+
+    function testPolicy(policyset, request, successCB, errorCB) {
+        var rpc = webinos.rpcHandler.createRPC(this, "testPolicy", [policyset.getBaseFile(), JSON.stringify(request)]);
+        webinos.rpcHandler.executeRPC(rpc
+            , function (params) {
+                successCB(params);
+            }
+            , function (error) {
+                errorCB(error);
+            }
+        );
+    };
+    function testNewPolicy(policyset, request, successCB, errorCB) {
+        var rpc = webinos.rpcHandler.createRPC(this, "testNewPolicy", [JSON.stringify(policyset.toJSONObject()), JSON.stringify(request)]);
+        webinos.rpcHandler.executeRPC(rpc
+            , function (params) {
+                successCB(params);
+            }
+            , function (error) {
+                errorCB(error);
+            }
+        );
+    };
+
+// Start point..............
+// This function is used to test if the userId belongs to the friends array.
+    function userBelongsToFriend(userId) {
+        if (userId !== webinos.session.getPZHId()) {
+            var friends = webinos.session.getConnectedPzh();
+            var index = friends.indexOf(userId);
+            if (index > -1){
+                return 1;
+            }
+        }
+        return 0;
+    }
+// This function is used to replace the elements (ids) in the subject, and to  make it simple, only two possible values, one is the generic URI of zone owner, and another is the friends. Then return the changed subject (tempSubject).
+    function replaceId(subject) {
+        var friendFound = false;
+        var tempSubject = [];
+
+        var zoneOwner = webinos.session.getPZHId();
+        if (!zoneOwner) {
+            zoneOwner = webinos.session.getPZPId();
+        }
+
+        for (var j in subject) {
+            if (subject[j] === zoneOwner) {
+                tempSubject.push("http://webinos.org/subject/id/PZ-Owner");
+            } else if (userBelongsToFriend(subject[j])) {
+                if (friendFound == false) {
+                    tempSubject.push("http://webinos.org/subject/id/known");
+                    friendFound = true;
+                }
+            // do nothing if friendFound is true
+            } else {
+                // default behaviour, copy item
+                tempSubject.push(subject[j]);
+            }
+        }
+        return tempSubject;
+    }
+
+    function deepCopy(p,c) {
+        var c = c || {};
+        for (var i in p) {
+            if (typeof p[i] === 'object') {
+                c[i] = (p[i].constructor === Array) ? [] : {};
+                deepCopy(p[i], c[i]);
+            }
+            else {
+                c[i] = p[i];
+            }
+        }
+        return c;
+    }
+
+// This function used to join two results together, res2 only can have two elements at most, one in the generic set and one in the matched set. So ckecked them one by one is the easiest solution. To avoid duplication, in both if functions, also check if the element in the res2 already presented in the res1, if already presented, skip this step, other wise push the element in res1, and return res1.
+    function joinResult(res1, res2) {
+        var found_g = false, found_m = false;
+        var res = deepCopy(res1);
+        for (var i in res2['generic']) {
+            for (var j in res1['generic']) {
+                if (res1['generic'][j].toJSONObject() === res2['generic'][i].toJSONObject() ) {
+                    found_g = true;
+                    break;
+                }
+            }
+            if (found_g == false) {
+                res['generic'].push(res2['generic'][i]);
+            }
+            found_g = false;
+        }
+
+        for (var m in res2['matched']) {
+            for (var n in res1['matched']) {
+                if (res1['matched'][n].toJSONObject() === res2['matched'][m].toJSONObject() ) {
+                    found_m = true;
+                    break;
+                }
+            }
+            if (found_m == false) {
+                res['matched'].push(res2['matched'][m]);
+            }
+            found_m = false;
+        }
+
+        return res;
+    }
+})();
 /*******************************************************************************
 *  Code contributed to the webinos project
 * 
@@ -4693,6 +6197,11 @@ function clearWatch(watchId) {
 			return this._testAttr + " Success";
 		});
 	};
+	// Inherit all functions from WebinosService
+	TestModule.prototype = Object.create(WebinosService.prototype);
+	// The following allows the 'instanceof' to work properly
+	TestModule.prototype.constructor = TestModule;
+	// Register to the service discovery
 	_webinos.registerServiceConstructor("http://webinos.org/api/test", TestModule);
 	
 	/**
