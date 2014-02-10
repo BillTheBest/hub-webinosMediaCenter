@@ -213,8 +213,6 @@ function MainMenuView(viewModel){
       $('.webinoslogo').fadeIn(1000);
       $('.fokuslogo').fadeOut(1000);
     }
-    $('.logoArea').height(height*0.05);
-    $('.logoArea').width(height*0.05);
   }, 4000);
 
   function calcSize(){

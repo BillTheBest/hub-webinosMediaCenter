@@ -253,15 +253,20 @@ function BrowserViewModel(manager, input, mainMenuViewModel) {
     selectedPeer: selectedPeer,
     queue: queue, selectedQueue: selectedQueue
   }).sampledBy(controls.remove()).filter(function (state) {
-    return state.selectedPeer !== '<no-peer>' && state.selectedPeer.type === 'peer' && state.selectedQueue.length;
+
+    return state.selectedPeer !== '<no-peer>' && state.selectedPeer.type === 'peer';
   }).onValue(function (state) {
     var indexes = [];
 
-    _.each(state.selectedQueue, function (link) {
-      _.each(state.queue, function (item, index) {
-        if (link === item.link) indexes.push(index);
+    if(state.selectedQueue.length){
+      _.each(state.selectedQueue, function (link) {
+        _.each(state.queue, function (item, index) {
+          if (link === item.link) indexes.push(index);
+        });
       });
-    });
+    }else{
+      _.each(state.queue, function (item, index) {indexes.push(index)});
+    }
 
     state.selectedPeer.service.remove(indexes);
   });
