@@ -2037,7 +2037,211 @@ if (typeof _webinos === "undefined") {
 		webinos.rpcHandler.executeRPC(rpc);
 	}
 	
-}());(function() {
+}());/*******************************************************************************
+ *  Code contributed to the webinos project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * Copyright 2013 EPU-National Technical University of Athens
+ * Author: Christos Botsikas, NTUA
+ ******************************************************************************/
+
+(function () {
+    var Service = function (obj, rpcHandler) {
+        WebinosService.call(this, obj);
+        this.rpcHandler = rpcHandler;
+    };
+	// Inherit all functions from WebinosService
+	Service.prototype = Object.create(WebinosService.prototype);	
+	// The following allows the 'instanceof' to work properly
+	Service.prototype.constructor = Service;
+	// Register to the service discovery
+    _webinos.registerServiceConstructor("http://webinos.org/api/db", Service);
+
+    Service.prototype.open = function (successCallback, errorCallback) {
+        var self = this;
+        var rpc = self.rpcHandler.createRPC(self, "dbOpen");
+        self.rpcHandler.executeRPC(rpc
+            , function (dbName) {
+                successCallback(new Database(self, dbName));
+            }
+            , errorCallback
+        );
+    };
+
+    var Database = function (service, name) {
+        this.service = service;
+        this.name = name;
+
+        this.rpcHandler = service.rpcHandler;
+    };
+
+    /**
+     * collectionNames([collectionName], [options], [successCallback, [errorCallback]])
+     * @param collectionName
+     * @param options
+     * @param successCallback
+     * @param errorCallback
+     */
+    Database.prototype.collectionNames = function (collectionName, options, successCallback, errorCallback) {
+        if (typeof collectionName !== "string" && collectionName != null) {
+            errorCallback = successCallback;
+            successCallback = options;
+            options = collectionName;
+            collectionName = null;
+        }
+        if (typeof options !== "object") {
+            errorCallback = successCallback;
+            successCallback = options;
+            options = {};
+        }
+        var self = this;
+        var rpc = self.rpcHandler.createRPC(self.service, "dbCollectionNames", {collectionName: collectionName, options: options});
+        self.rpcHandler.executeRPC(rpc
+            , function (collections) {
+                if (options.namesOnly) {
+                    successCallback(collections);
+                } else {
+                    successCallback(collections.map(function (collectionName) {
+                        return new Collection(self, collectionName);
+                    }));
+                }
+            }
+            , errorCallback);
+    };
+    Database.prototype.collection = function (collectionName, successCallback, errorCallback) {
+        var self = this;
+        var rpc = self.rpcHandler.createRPC(self.service, "dbCollection", {collectionName: collectionName});
+        self.rpcHandler.executeRPC(rpc
+            , function (collectionName) {
+                successCallback(new Collection(self, collectionName));
+            }
+            , errorCallback
+        );
+    };
+    Database.prototype.createCollection = function (collectionName, successCallback, errorCallback) {
+        var self = this;
+        var rpc = self.rpcHandler.createRPC(self.service, "dbCreateCollection", {collectionName: collectionName});
+        self.rpcHandler.executeRPC(rpc
+            , function (collectionName) {
+                successCallback(new Collection(self, collectionName));
+            }
+            , errorCallback
+        );
+    };
+
+    Database.prototype.dropCollection = function (collectionName, successCallback, errorCallback) {
+        var self = this;
+        var rpc = self.rpcHandler.createRPC(self.service, "dbDropCollection", {collectionName: collectionName});
+        self.rpcHandler.executeRPC(rpc
+            , successCallback
+            , errorCallback
+        );
+    };
+
+    Database.prototype.renameCollection = function (fromCollection, toCollection, options, successCallback, errorCallback) {
+        if (typeof options == 'function') {
+            errorCallback = successCallback;
+            successCallback = options;
+            options = {};
+        }
+        var self = this;
+        var rpc = self.rpcHandler.createRPC(self.service, "dbRenameCollection", {fromCollection: fromCollection, toCollection: toCollection, options: options});
+        self.rpcHandler.executeRPC(rpc
+            , function (collectionName) {
+                successCallback(new Collection(self, collectionName));
+            }
+            , errorCallback
+        );
+    };
+
+    var Collection = function (database, name) {
+        this.database = database;
+        this.name = name;
+
+        this.service = database.service;
+        this.rpcHandler = database.rpcHandler;
+    };
+
+    Collection.prototype.insert = function (docs, successCallback, errorCallback) {
+        var self = this;
+        var rpc = self.rpcHandler.createRPC(self.service, "collectionInsert", {collectionName: self.name, docs: docs});
+        self.rpcHandler.executeRPC(rpc, successCallback, errorCallback);
+    };
+
+    Collection.prototype.remove = function (selector, successCallback, errorCallback) {
+        if (typeof selector === "function"){
+            errorCallback = successCallback;
+            successCallback  = selector;
+            selector = null;
+        }
+        var self = this;
+        var rpc = self.rpcHandler.createRPC(self.service, "collectionRemove", {collectionName: self.name, selector: selector});
+        self.rpcHandler.executeRPC(rpc, successCallback, errorCallback);
+    };
+
+    Collection.prototype.update = function (selector, document, options, successCallback, errorCallback) {
+        if (typeof options === "function"){
+            errorCallback = successCallback;
+            successCallback  = options;
+            options = {};
+        }
+        var self = this;
+        var rpc = self.rpcHandler.createRPC(self.service, "collectionUpdate", {collectionName: self.name, selector: selector, document: document, options: options});
+        self.rpcHandler.executeRPC(rpc, successCallback, errorCallback);
+    };
+
+    Collection.prototype.distinct = function (key, query, successCallback, errorCallback) {
+        var self = this;
+        var rpc = self.rpcHandler.createRPC(self.service, "collectionDistinct", {collectionName: self.name, key: key, query: query});
+        self.rpcHandler.executeRPC(rpc, successCallback, errorCallback);
+    };
+
+    Collection.prototype.count = function (query, successCallback, errorCallback) {
+        if (typeof query === "function"){
+            errorCallback = successCallback;
+            successCallback  = query;
+            query = {};
+        }
+        var self = this;
+        var rpc = self.rpcHandler.createRPC(self.service, "collectionCount", {collectionName: self.name, query: query});
+        self.rpcHandler.executeRPC(rpc, successCallback, errorCallback);
+    };
+
+    Collection.prototype.find = function (selector, options, successCallback, errorCallback) {
+        if (typeof options === "function"){
+            errorCallback = successCallback;
+            successCallback  = options;
+            options = {};
+        }
+        var self = this;
+        var rpc = self.rpcHandler.createRPC(self.service, "collectionFind", {collectionName: self.name, selector: selector, options: options});
+        self.rpcHandler.executeRPC(rpc, successCallback, errorCallback);
+    };
+
+    Collection.prototype.findOne = function (selector, options, successCallback, errorCallback) {
+        if (typeof options === "function"){
+            errorCallback = successCallback;
+            successCallback  = options;
+            options = {};
+        }
+        var self = this;
+        var rpc = self.rpcHandler.createRPC(self.service, "collectionFindOne", {collectionName: self.name, selector: selector, options: options});
+        self.rpcHandler.executeRPC(rpc, successCallback, errorCallback);
+    };
+
+})();
+(function() {
 
 WebinosDeviceOrientation = function (obj) {
 	WebinosService.call(this, obj);
@@ -2188,7 +2392,192 @@ function dispatchEvent(event) {
     //TODO
 };
 
-})();/*******************************************************************************
+})();(function () {
+	var PropertyValueSuccessCallback, ErrorCallback, DeviceAPIError, PropertyRef;
+
+	DeviceStatusManager = function (obj) {
+		WebinosService.call(this, obj);
+	};
+	
+	DeviceStatusManager.prototype = Object.create(WebinosService.prototype);
+	// The following allows the 'instanceof' to work properly
+	DeviceStatusManager.prototype.constructor = DeviceStatusManager;
+	// Register in the service discovery
+	_webinos.registerServiceConstructor("http://webinos.org/api/devicestatus", DeviceStatusManager);
+
+	DeviceStatusManager.prototype.bindService = function (bindCB, serviceId) {
+		// actually there should be an auth check here or whatever, but we just always bind
+		this.getComponents = getComponents;
+		this.isSupported = isSupported;
+		this.getPropertyValue = getPropertyValue;
+
+		if (typeof bindCB.onBind === 'function') {
+			bindCB.onBind(this);
+		};
+	}
+
+	function getComponents (aspect, successCallback, errorCallback)	{
+		var rpc = webinos.rpcHandler.createRPC(this, "devicestatus.getComponents", [aspect]);
+		webinos.rpcHandler.executeRPC(rpc,
+			function (params) { successCallback(params); }
+		);
+		return;
+	}
+
+	function isSupported (aspect, property, successCallback)
+	{
+		var rpc = webinos.rpcHandler.createRPC(this, "devicestatus.isSupported", [aspect, property]);
+		webinos.rpcHandler.executeRPC(
+			rpc, 
+			function (res) { successCallback(res); }
+		);
+		return;
+	}
+
+	function getPropertyValue (successCallback, errorCallback, prop) {
+		var rpc = webinos.rpcHandler.createRPC(this, "devicestatus.getPropertyValue", [prop]);
+		webinos.rpcHandler.executeRPC(
+			rpc, 
+			function (params) { successCallback(params); },
+			function (err) { errorCallback(err); }
+		);
+		return;
+	};
+
+	PropertyValueSuccessCallback = function () {};
+
+	PropertyValueSuccessCallback.prototype.onSuccess = function (prop) {
+		return;
+	};
+
+	ErrorCallback = function () {};
+
+	ErrorCallback.prototype.onError = function (error) {
+		return;
+	};
+
+	DeviceAPIError = function () {
+		this.message = String;
+		this.code = Number;
+	};
+
+	DeviceAPIError.prototype.UNKNOWN_ERR                    = 0;
+	DeviceAPIError.prototype.INDEX_SIZE_ERR                 = 1;
+	DeviceAPIError.prototype.DOMSTRING_SIZE_ERR             = 2;
+	DeviceAPIError.prototype.HIERARCHY_REQUEST_ERR          = 3;
+	DeviceAPIError.prototype.WRONG_DOCUMENT_ERR             = 4;
+	DeviceAPIError.prototype.INVALID_CHARACTER_ERR          = 5;
+	DeviceAPIError.prototype.NO_DATA_ALLOWED_ERR            = 6;
+	DeviceAPIError.prototype.NO_MODIFICATION_ALLOWED_ERR    = 7;
+	DeviceAPIError.prototype.NOT_FOUND_ERR                  = 8;
+	DeviceAPIError.prototype.NOT_SUPPORTED_ERR              = 9;
+	DeviceAPIError.prototype.INUSE_ATTRIBUTE_ERR            = 10;
+	DeviceAPIError.prototype.INVALID_STATE_ERR              = 11;
+	DeviceAPIError.prototype.SYNTAX_ERR                     = 12;
+	DeviceAPIError.prototype.INVALID_MODIFICATION_ERR       = 13;
+	DeviceAPIError.prototype.NAMESPACE_ERR                  = 14;
+	DeviceAPIError.prototype.INVALID_ACCESS_ERR             = 15;
+	DeviceAPIError.prototype.VALIDATION_ERR                 = 16;
+	DeviceAPIError.prototype.TYPE_MISMATCH_ERR              = 17;
+	DeviceAPIError.prototype.SECURITY_ERR                   = 18;
+	DeviceAPIError.prototype.NETWORK_ERR                    = 19;
+	DeviceAPIError.prototype.ABORT_ERR                      = 20;
+	DeviceAPIError.prototype.TIMEOUT_ERR                    = 21;
+	DeviceAPIError.prototype.INVALID_VALUES_ERR             = 22;
+	DeviceAPIError.prototype.NOT_AVAILABLE_ERR              = 101;
+	DeviceAPIError.prototype.code = Number;
+	DeviceAPIError.prototype.message = Number;
+
+	PropertyRef = function () {
+		this.component = String;
+		this.aspect = String;
+		this.property = String;
+	};
+
+	PropertyRef.prototype.component = String;
+	PropertyRef.prototype.aspect = String;
+	PropertyRef.prototype.property = String;
+
+}());
+/*******************************************************************************
+*  Code contributed to the webinos project
+* 
+* Licensed under the Apache License, Version 2.0 (the "License");
+* you may not use this file except in compliance with the License.
+* You may obtain a copy of the License at
+*  
+*     http://www.apache.org/licenses/LICENSE-2.0
+*  
+* Unless required by applicable law or agreed to in writing, software
+* distributed under the License is distributed on an "AS IS" BASIS,
+* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+* See the License for the specific language governing permissions and
+* limitations under the License.
+* 
+* Copyright 2012 Ziran Sun Samsung Electronics(UK) Ltd
+*
+******************************************************************************/
+(function () {
+
+	/**
+	 * Webinos Bluetooth Discovery service constructor (client side).
+	 * @constructor
+	 * @param obj Object containing displayName, api, etc.
+	 */
+	DiscoveryModule = function (obj) {
+		WebinosService.call(this, obj);
+	};
+	
+    // Inherit all functions from WebinosService
+	DiscoveryModule.prototype = Object.create(WebinosService.prototype);
+    // The following allows the 'instanceof' to work properly
+	DiscoveryModule.prototype.constructor = DiscoveryModule;
+    // Register to the service discovery
+	_webinos.registerServiceConstructor("http://webinos.org/api/discovery", DiscoveryModule);
+	
+	/**
+	 * To find devices that support the specific service. This applies to both Android and Linux
+	 * @param data Service type.
+	 * @param success Success callback.
+	 */
+	DiscoveryModule.prototype.BTfindservice = function (data, success) {
+		console.log("BT findservice");
+		var rpc = webinos.rpcHandler.createRPC(this, "BTfindservice", arguments);
+		webinos.rpcHandler.executeRPC(rpc, function(params) {
+			success(params);
+		});
+	};
+	
+	
+	/**
+	 * To find devices using DNS . This applies to Android
+	 * @param data Service type.
+	 * @param success Success callback.
+	 */
+	DiscoveryModule.prototype.DNSfindservice = function(data, success){
+		console.log("DNS findservice");
+		var rpc = webinos.rpcHandler.createRPC(this, "DNSfindservice", arguments);
+		webinos.rpcHandler.executeRPC(rpc, function(params) {
+			success(params);
+		});
+	};
+	
+	/**
+	 * To find Heart Rate Monitor device, only support Android OS.
+	 * @param data Service type.
+	 * @param success Success callback.
+	 */
+
+	DiscoveryModule.prototype.findHRM = function(data, success){
+		console.log("HRM find HRM");
+  		var rpc = webinos.rpcHandler.createRPC(this, "findHRM",data);
+	  	webinos.rpcHandler.executeRPC(rpc, function(params) {
+	  		success(params);
+	  	});
+	};
+
+}());
+/*******************************************************************************
 *  Code contributed to the webinos project
 * 
 * Licensed under the Apache License, Version 2.0 (the "License");
@@ -6165,6 +6554,361 @@ function clearWatch(watchId) {
         return res;
     }
 })();
+/*******************************************************************************
+*  Code contributed to the webinos project
+*
+* Licensed under the Apache License, Version 2.0 (the "License");
+* you may not use this file except in compliance with the License.
+* You may obtain a copy of the License at
+*
+*     http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing, software
+* distributed under the License is distributed on an "AS IS" BASIS,
+* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+* See the License for the specific language governing permissions and
+* limitations under the License.
+*
+* Copyright 2012 Martin Lasak, Fraunhofer FOKUS
+******************************************************************************/
+
+//implementation at client side, includes RPC massage invokation
+/**
+ * Interface for TV control and management.
+ * 
+ * 
+ * The interface provides means to acquire a list of tv sources, channels and
+ * their streams.
+ * 
+ * The TV channel streams can be displayed in HTMLVideoElement object
+ * (http://dev.w3.org/html5/spec/video.html). Alternatively the API provides
+ * means to control channel management of the native hardware TV, by allowing to
+ * set a channel or watch for channel changes that are invoked otherwise.
+ * 
+ * The tv object is made available under the webinos namespace, i.e. webinos.tv.
+ * 
+ */
+(function() {
+
+	var TVManager, TVDisplayManager, TVDisplaySuccessCB, TVTunerManager, TVSuccessCB, TVErrorCB, TVError, TVSource, Channel, ChannelChangeEvent;
+	var that = this;	
+	
+	/**
+	 * Interface to manage what's currently displayed on TV screen.
+	 * 
+	 * 
+	 * This interface is useful when an app doesn't want to show the broadcast
+	 * itself, but let the TV natively handle playback, i.e. not in a web
+	 * context. Useful to build an control interface that allows channel
+	 * switching.
+	 * 
+	 */
+	TVDisplayManager = function(){};
+
+	/**
+	 * Switches the channel natively on the TV (same as when a hardware remote
+	 * control would be used).
+	 * 
+	 */
+	TVDisplayManager.prototype.setChannel = function(channel, successCallback,
+			errorCallback) {
+		var rpc = webinos.rpcHandler.createRPC(that, "display.setChannel", arguments);
+		webinos.rpcHandler.executeRPC(rpc, function(params) {
+			successCallback(params);
+		}, function(error) {
+			if(errorCallback) errorCallback();
+		});
+		return;
+	};
+	
+	//TODO: only internal temporarily use!
+	//This is only to bridge the missing Media Capture API and EPG functionality 
+	TVDisplayManager.prototype.getEPGPIC = function(channel, successCallback,
+			errorCallback) {
+		var rpc = webinos.rpcHandler.createRPC(that, "display.getEPGPIC", arguments);
+		webinos.rpcHandler.executeRPC(rpc, function(params) {
+			successCallback(params);
+		}, function(error) {
+			if(errorCallback) errorCallback();
+		});
+		return;
+	};
+
+	/**
+	 * Callback function when current channel changed successfully.
+	 * 
+	 */
+	TVDisplaySuccessCB = function() {
+		// TODO implement constructor logic if needed!
+
+	};
+	TVDisplaySuccessCB.prototype.onSuccess = function(channel) {
+		// TODO: Add your application logic here!
+
+		return;
+	};
+
+	// TODO: does not conform API Spec, but needs to be added!
+	TVDisplayManager.prototype.addEventListener = function(eventname,
+			channelchangeeventhandler, useCapture) {
+		var rpc = webinos.rpcHandler.createRPC(that, "display.addEventListener",
+				arguments);
+
+		rpc.onchannelchangeeventhandler = function(params,
+				successCallback, errorCallback) {
+
+			channelchangeeventhandler(params);
+
+		};
+
+		// register the object as being remotely accessible
+		webinos.rpcHandler.registerCallbackObject(rpc);
+
+		webinos.rpcHandler.executeRPC(rpc);
+		return;
+	};
+
+	/**
+	 * Get a list of all available TV tuners.
+	 * 
+	 */
+	TVTunerManager = function(){};
+
+	/**
+	 * Get a list of all available TV tuners.
+	 * 
+	 */
+	TVTunerManager.prototype.getTVSources = function(successCallback,
+			errorCallback) {
+		var rpc = webinos.rpcHandler.createRPC(that, "tuner.getTVSources", arguments);
+		webinos.rpcHandler.executeRPC(rpc, function(params) {
+			successCallback(params);
+		}, function(error) {
+		});
+		return;
+	};
+
+	/**
+	 * Callback for found TV tuners.
+	 * 
+	 */
+	TVSuccessCB = function() {
+		// TODO implement constructor logic if needed!
+
+	};
+
+	/**
+	 * Callback that is called with the found TV sources.
+	 * 
+	 */
+	TVSuccessCB.prototype.onSuccess = function(sources) {
+		// TODO: Add your application logic here!
+
+		return;
+	};
+
+	/**
+	 * Error callback for errors when trying to get TV tuners.
+	 * 
+	 */
+	TVErrorCB = function() {
+		// TODO implement constructor logic if needed!
+
+	};
+
+	/**
+	 * Callback that is called when an error occures while getting TV sources
+	 * 
+	 */
+	TVErrorCB.prototype.onError = function(error) {
+		// TODO: Add your application logic here!
+
+		return;
+	};
+
+	/**
+	 * Error codes.
+	 * 
+	 */
+	TVError = function() {
+		// TODO implement constructor logic if needed!
+
+		// TODO initialize attributes
+
+		this.code = Number;
+	};
+
+	/**
+	 * An unknown error.
+	 * 
+	 */
+	TVError.prototype.UNKNOWN_ERROR = 0;
+
+	/**
+	 * Invalid input channel.
+	 * 
+	 */
+	TVError.prototype.ILLEGAL_CHANNEL_ERROR = 1;
+
+	/**
+	 * Code.
+	 * 
+	 */
+	TVError.prototype.code = Number;
+
+	/**
+	 * TV source: a list of channels with a name.
+	 * 
+	 */
+	TVSource = function() {
+		// TODO implement constructor logic if needed!
+
+		// TODO initialize attributes
+
+		this.name = String;
+		this.channelList = Number;
+	};
+
+	/**
+	 * The name of the source.
+	 * 
+	 * 
+	 * The name should describe the kind of tuner this source represents, e.g.
+	 * DVB-T, DVB-C.
+	 * 
+	 */
+	TVSource.prototype.name = String;
+
+	/**
+	 * List of channels for this source.
+	 * 
+	 */
+	TVSource.prototype.channelList = Number;
+
+	/**
+	 * The Channel Interface
+	 * 
+	 * 
+	 * Channel objects provide access to the video stream.
+	 * 
+	 */
+	Channel = function() {
+		this.channelType = Number;
+		this.name = String;
+		this.longName = String;
+		this.stream = "new Stream()";
+		this.tvsource = new TVSource();
+	};
+
+	/**
+	 * Indicates a TV channel.
+	 * 
+	 */
+	Channel.prototype.TYPE_TV = 0;
+
+	/**
+	 * Indicates a radio channel.
+	 * 
+	 */
+	Channel.prototype.TYPE_RADIO = 1;
+
+	/**
+	 * The type of channel.
+	 * 
+	 * 
+	 * Type of channel is defined by one of the TYPE_* constants defined above.
+	 * 
+	 */
+	Channel.prototype.channelType = Number;
+
+	/**
+	 * The name of the channel.
+	 * 
+	 * 
+	 * The name of the channel will typically be the call sign of the station.
+	 * 
+	 */
+	Channel.prototype.name = String;
+
+	/**
+	 * The long name of the channel.
+	 * 
+	 * 
+	 * The long name of the channel if transmitted. Can be undefined if not
+	 * available.
+	 * 
+	 */
+	Channel.prototype.longName = String;
+
+	/**
+	 * The video stream.
+	 * 
+	 * 
+	 * This stream is a represents a valid source for a HTMLVideoElement.
+	 * 
+	 */
+	Channel.prototype.stream = null;
+
+	/**
+	 * The source this channels belongs too.
+	 * 
+	 */
+	Channel.prototype.tvsource = null;
+
+	/**
+	 * Event that fires when the channel is changed.
+	 * 
+	 * 
+	 * Changing channels could also be invoked by other parties, e.g. a hardware
+	 * remote control. A ChannelChange event will be fire in these cases which
+	 * provides the channel that was switched to.
+	 * 
+	 */
+	ChannelChangeEvent = function() {
+		// TODO implement constructor logic if needed!
+
+		// TODO initialize attributes
+
+		this.channel = new Channel();
+	};
+
+	/**
+	 * The new channel.
+	 * 
+	 */
+	ChannelChangeEvent.prototype.channel = null;
+
+	/**
+	 * Initializes a new channel change event.
+	 * 
+	 */
+	ChannelChangeEvent.prototype.initChannelChangeEvent = function(type,
+			bubbles, cancelable, channel) {
+		// TODO: Add your application logic here!
+
+		return;
+	};
+	
+	/**
+	 * Access to tuner and display managers.
+	 * 
+	 */
+	TVManager = function(obj) {
+	    WebinosService.call(this, obj);
+		that = this;
+		
+		this.display = new TVDisplayManager(obj);
+		this.tuner = new TVTunerManager(obj);
+	};
+	// Inherit all functions from WebinosService
+	TVManager.prototype = Object.create(WebinosService.prototype);
+	// The following allows the 'instanceof' to work properly
+	TVManager.prototype.constructor = TVManager;
+	// Register to the service discovery
+	_webinos.registerServiceConstructor("http://webinos.org/api/tv", TVManager);
+
+
+}());
 /*******************************************************************************
 *  Code contributed to the webinos project
 * 
