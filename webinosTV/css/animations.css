@@ -1,5 +1,13 @@
 /* animation sets */
 
+.fokuslogo {
+	transition: opacity 1s;
+}
+
+.logotransparent {
+	opacity: 0;
+}
+
 /* move from / to  */
 
 .pt-page-moveToLeft {

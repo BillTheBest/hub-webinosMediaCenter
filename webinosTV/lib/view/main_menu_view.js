@@ -210,14 +210,11 @@ function MainMenuView(viewModel){
 
   closeSelectDevice();
 
-  $('.webinoslogo').fadeOut();
   setInterval(function(){
-    if($('.webinoslogo').is(":visible")){
-      $('.webinoslogo').fadeOut(1000);
-      $('.fokuslogo').fadeIn(1000);
+    if($('.fokuslogo').hasClass("logotransparent")){
+      $('.fokuslogo').removeClass("logotransparent");
     }else{
-      $('.webinoslogo').fadeIn(1000);
-      $('.fokuslogo').fadeOut(1000);
+      $('.fokuslogo').addClass("logotransparent");
     }
   }, 4000);
 
